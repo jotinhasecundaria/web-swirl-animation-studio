@@ -1,7 +1,6 @@
 
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Environment, Effects } from '@react-three/drei';
-import { Bloom, EffectComposer } from '@react-three/postprocessing';
+import { OrbitControls, Environment } from '@react-three/drei';
 import Scene3D from './Scene3D';
 
 export default function Canvas3D() {
@@ -28,15 +27,6 @@ export default function Canvas3D() {
           minDistance={5}
           maxDistance={15}
         />
-        
-        {/* Post-processing effects */}
-        <EffectComposer>
-          <Bloom
-            intensity={0.5}
-            luminanceThreshold={0.9}
-            luminanceSmoothing={0.025}
-          />
-        </EffectComposer>
       </Canvas>
       
       {/* UI Overlay */}
