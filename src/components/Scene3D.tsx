@@ -1,5 +1,6 @@
 
-import { useRef, useFrame } from '@react-three/fiber';
+import { useFrame } from '@react-three/fiber';
+import { useRef } from 'react';
 import { Text, Float, MeshDistortMaterial, MeshWobbleMaterial, Sphere, Box, Torus } from '@react-three/drei';
 import * as THREE from 'three';
 
