@@ -129,7 +129,7 @@ const Dashboard: React.FC = () => {
     setExpandedIndex(expandedIndex === index ? null : index);
   };
 
-  const getIcon = (title) => {
+  const getIcon = (title: string) => {
     switch (title) {
       case "Agendamento":
         return <CalendarCheck className="w-5 h-5" />;
@@ -141,18 +141,20 @@ const Dashboard: React.FC = () => {
         return <CalendarCheck className="w-5 h-5" />;
     }
   };
-  const formatDateLabel = (dateString) => {
+  
+  const formatDateLabel = (dateString: string) => {
     const today = new Date();
     const [day, month, year] = dateString.split("/");
     const activityDate = new Date(`${year}-${month}-${day}`);
 
-    const diffTime = today - activityDate;
+    const diffTime = today.getTime() - activityDate.getTime();
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
     if (diffDays === 0) return "Hoje";
     if (diffDays === 1) return "Ontem";
     return activityDate.toLocaleDateString("pt-BR", { weekday: "long" });
   };
+
   return (
     <div
       ref={dashboardRef}
@@ -271,10 +273,9 @@ const Dashboard: React.FC = () => {
           </p>
           <CardContent className="dashboard-chart grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-4 gap-4 md:gap-6 my-0 md:my-3">
             {inventoryPercent.map((item) => (
-              <div>
+              <div key={item.name}>
                 <div className="block sm:inline lg:hidden ">
                   <div
-                    key={item.name}
                     className=" flex flex-col justify-center items-center my-4 md:my-0 p-4 rounded-md"
                   >
                     <GaugeChart title={item.name} value={item.value} size={180} />
@@ -282,7 +283,6 @@ const Dashboard: React.FC = () => {
                 </div>
                 <div className="hidden lg:inline xl:hidden ">
                   <div
-                    key={item.name}
                     className=" flex flex-col justify-center items-center my-4 md:my-0 p-4 rounded-md"
                   >
                     <GaugeChart title={item.name} value={item.value} size={180} />
@@ -290,7 +290,6 @@ const Dashboard: React.FC = () => {
                 </div>
                 <div className="hidden xl:inline">
                   <div
-                    key={item.name}
                     className=" flex flex-col justify-center items-center my-4 md:my-0 p-4 rounded-md"
                   >
                     <GaugeChart title={item.name} value={item.value} size={200} />
