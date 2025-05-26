@@ -122,10 +122,10 @@ const Dashboard: React.FC = () => {
     },
   ];
 
-  const [expandedIndex, setExpandedIndex] = useState(null);
+  const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
   const [activities] = useState(recentActivity);
 
-  const toggleAccordion = (index) => {
+  const toggleAccordion = (index: number) => {
     setExpandedIndex(expandedIndex === index ? null : index);
   };
 
