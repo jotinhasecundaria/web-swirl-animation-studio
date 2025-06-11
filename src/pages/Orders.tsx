@@ -125,8 +125,8 @@ const Orders: React.FC = () => {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 dark:border-white mx-auto"></div>
-          <p className="mt-4 text-gray-500 dark:text-gray-400">Carregando agendamentos...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-neutral-900 dark:border-neutral-100 mx-auto"></div>
+          <p className="mt-4 text-neutral-500 dark:text-neutral-400">Carregando agendamentos...</p>
         </div>
       </div>
     );
@@ -135,14 +135,19 @@ const Orders: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between flex-wrap items-center">
-        <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
-          Agendamentos
-        </h1>
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">
+            Agendamentos
+          </h1>
+          <p className="text-neutral-500 dark:text-neutral-400 mt-1">
+            Gerencie seus agendamentos de forma eficiente
+          </p>
+        </div>
         <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
           <PopoverTrigger asChild>
             <Button
               variant="outline"
-              className="bg-gradient-to-r from-gray-50 to-white hover:from-white hover:to-gray-50 dark:from-gray-800 dark:to-gray-700 dark:hover:from-gray-700 dark:hover:to-gray-600 dark:border-none mt-4 xs:mt-2 md:mt-0"
+              className="bg-white hover:bg-neutral-50 dark:bg-neutral-800 dark:hover:bg-neutral-700 border-neutral-200 dark:border-neutral-700 mt-4 xs:mt-2 md:mt-0"
             >
               <CalendarIcon className="h-4 w-4 mr-2" />
               Calendário
@@ -160,12 +165,12 @@ const Orders: React.FC = () => {
       </div>
 
       <div>
-        <Card className="dark:bg-gray-800 dark:text-gray-100 bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 dark:border-none">
+        <Card className="bg-white dark:bg-neutral-900/50 border-neutral-200 dark:border-neutral-800">
           <CardHeader>
-            <CardTitle className="text-xl text-gray-900 dark:text-gray-100">
+            <CardTitle className="text-xl text-neutral-900 dark:text-neutral-100">
               Agendamentos Gerais
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-neutral-600 dark:text-neutral-300">
               Visualize seus agendamentos recentes e futuros
             </CardDescription>
           </CardHeader>
