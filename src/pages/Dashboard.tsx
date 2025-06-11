@@ -1,5 +1,5 @@
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
 import DashboardChart from "@/components/DashboardChart.tsx";
 import { Card, CardContent } from "../components/ui/card";
@@ -17,15 +17,32 @@ import ForecastPerformanceCard from "@/components/dashboard/ForecastPerformanceC
 import QuickActionsCard from "@/components/dashboard/QuickActionsCard";
 import UnitSelectorCard from "@/components/dashboard/UnitSelectorCard";
 
-interface ConsumptionData {
-  name: string;
-  value: number;
-}
+// Data imports
+import { getDashboardConsumption, type ConsumptionData } from "@/data/dashboard";
 
 const Dashboard: React.FC = () => {
   const dashboardRef = useRef<HTMLDivElement>(null);
+  const [consumptionData, setConsumptionData] = useState<ConsumptionData[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const loadDashboardData = async () => {
+      try {
+        const consumption = await getDashboardConsumption();
+        setConsumptionData(consumption);
+        setLoading(false);
+      } catch (error) {
+        console.error("Error loading dashboard data:", error);
+        setLoading(false);
+      }
+    };
+
+    loadDashboardData();
+  }, []);
+
+  useEffect(() => {
+    if (loading) return;
+
     const ctx = gsap.context(() => {
       gsap.fromTo(
         ".dashboard-card",
@@ -54,17 +71,18 @@ const Dashboard: React.FC = () => {
     }, dashboardRef);
 
     return () => ctx.revert();
-  }, []);
+  }, [loading]);
 
-  const consumptionData: ConsumptionData[] = [
-    { name: "Jan", value: 23 },
-    { name: "Fev", value: 34 },
-    { name: "Mar", value: 45 },
-    { name: "Abr", value: 31 },
-    { name: "Mai", value: 42 },
-    { name: "Jun", value: 52 },
-    { name: "Jul", value: 49 },
-  ];
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 dark:border-white mx-auto"></div>
+          <p className="mt-4 text-gray-500 dark:text-gray-400">Carregando dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

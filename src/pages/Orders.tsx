@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -20,7 +21,7 @@ import {
   startOfDay
 } from "date-fns";
 import { CalendarIcon } from "lucide-react";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 // Component imports
 import AppointmentsCalendar from "@/components/appointments/AppointmentsCalendar";
@@ -32,125 +33,49 @@ import {
   getUnitsSummary
 } from "@/utils/appointments";
 
-// Mock data for appointments
-const mockAppointments = [
-  {
-    id: "A001",
-    patient: "João Silva",
-    type: "Coleta de Sangue",
-    date: new Date(2024, 4, 15, 9, 30),
-    doctor: "Dra. Ana Souza",
-    unit: "Unidade Centro",
-    cost: 120.0,
-    status: "Concluído",
-  },
-  {
-    id: "A002",
-    patient: "Maria Santos",
-    type: "Entrega de Resultado",
-    date: new Date(2024, 4, 16, 10, 45),
-    doctor: "Dr. Carlos Mendes",
-    unit: "Unidade Norte",
-    cost: 0,
-    status: "Cancelado",
-  },
-  {
-    id: "A003",
-    patient: "Pedro Oliveira",
-    type: "Colonoscopia",
-    date: new Date(2024, 4, 22, 8, 0),
-    doctor: "Dra. Lucia Freitas",
-    unit: "Unidade Sul",
-    cost: 550.0,
-    status: "Confirmado",
-  },
-  {
-    id: "A004",
-    patient: "Ana Pereira",
-    type: "Ultrassom",
-    date: new Date(2024, 4, 23, 14, 15),
-    doctor: "Dr. Roberto Castro",
-    unit: "Unidade Leste",
-    cost: 280.0,
-    status: "Confirmado",
-  },
-  {
-    id: "A005",
-    patient: "Carlos Ribeiro",
-    type: "Raio-X",
-    date: new Date(2024, 4, 24, 11, 0),
-    doctor: "Dra. Fernanda Lima",
-    unit: "Unidade Centro",
-    cost: 180.0,
-    status: "Confirmado",
-  },
-  {
-    id: "A006",
-    patient: "Luiza Martins",
-    type: "Eletrocardiograma",
-    date: new Date(2024, 4, 25, 15, 30),
-    doctor: "Dr. Paulo Vieira",
-    unit: "Unidade Norte",
-    cost: 220.0,
-    status: "Agendado",
-  },
-  {
-    id: "A007",
-    patient: "Paulo Costa",
-    type: "Coleta de Sangue",
-    date: new Date(2024, 4, 19, 9, 0),
-    doctor: "Dra. Ana Souza",
-    unit: "Unidade Sul",
-    cost: 120.0,
-    status: "Agendado",
-  },
-  {
-    id: "A008",
-    patient: "Mariana Lima",
-    type: "Densitometria",
-    date: new Date(2024, 4, 20, 13, 45),
-    doctor: "Dr. José Santos",
-    unit: "Unidade Leste",
-    cost: 320.0,
-    status: "Agendado",
-  },
-  {
-    id: "A009",
-    patient: "Ricardo Alves",
-    type: "Tomografia",
-    date: new Date(2024, 4, 28, 10, 30),
-    doctor: "Dra. Carla Mendes",
-    unit: "Unidade Centro",
-    cost: 850.0,
-    status: "Agendado",
-  },
-  {
-    id: "A010",
-    patient: "Camila Ferreira",
-    type: "Mamografia",
-    date: new Date(2024, 4, 30, 11, 15),
-    doctor: "Dr. André Oliveira",
-    unit: "Unidade Norte",
-    cost: 380.0,
-    status: "Agendado",
-  },
-];
+// Data imports
+import { 
+  getAppointments, 
+  updateAppointmentStatus,
+  type Appointment 
+} from "@/data/appointments";
 
 const Orders: React.FC = () => {
   const today = startOfDay(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const [appointments, setAppointments] = useState(mockAppointments);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // Load appointments on component mount
+  useEffect(() => {
+    const loadAppointments = async () => {
+      try {
+        const appointmentsData = await getAppointments();
+        setAppointments(appointmentsData);
+        setLoading(false);
+      } catch (error) {
+        console.error("Error loading appointments:", error);
+      }
+    };
+
+    loadAppointments();
+  }, []);
 
   // Função para atualizar status do agendamento
-  const handleUpdateAppointmentStatus = (appointmentId: string, newStatus: string) => {
-    setAppointments(prevAppointments => 
-      prevAppointments.map(appointment => 
-        appointment.id === appointmentId 
-          ? { ...appointment, status: newStatus }
-          : appointment
-      )
-    );
+  const handleUpdateAppointmentStatus = async (appointmentId: string, newStatus: string) => {
+    try {
+      await updateAppointmentStatus(appointmentId, newStatus);
+      setAppointments(prevAppointments => 
+        prevAppointments.map(appointment => 
+          appointment.id === appointmentId 
+            ? { ...appointment, status: newStatus }
+            : appointment
+        )
+      );
+    } catch (error) {
+      console.error("Error updating appointment status:", error);
+    }
   };
 
   // Date calculations
@@ -195,6 +120,17 @@ const Orders: React.FC = () => {
 
   // Units summary
   const unitsList = getUnitsSummary(appointments);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 dark:border-white mx-auto"></div>
+          <p className="mt-4 text-gray-500 dark:text-gray-400">Carregando agendamentos...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
