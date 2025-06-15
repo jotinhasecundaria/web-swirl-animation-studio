@@ -1,342 +1,229 @@
-
-import React, { useState, useEffect, useRef } from "react";
-import { gsap } from "gsap";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Search, Plus, Calendar, Package, Database, Clock, Download, Upload, AlertTriangle, TrendingUp, Edit2, ShoppingCart, Link } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { Badge } from "@/components/ui/badge";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-
-// Components
-import InventoryStockHealth from "@/components/inventory/InventoryStockHealth";
-import InventoryItemCard from "@/components/inventory/InventoryItemCard";
-import InventoryAddItemDialog from "@/components/inventory/InventoryAddItemDialog";
-import InventoryExportDialog from "@/components/inventory/InventoryExportDialog";
-
-// Data imports
-import { 
-  getInventoryItems, 
-  getInventoryCategories, 
-  updateInventoryItem, 
-  reserveInventoryItem,
-  type InventoryItem,
-  type InventoryCategory 
-} from "@/data/inventory";
+import React, { useState } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
+import { AlertCircle, Loader2, Plus, Trash } from 'lucide-react';
+import { useSupabaseInventory } from '@/hooks/useSupabaseInventory';
+import { useToast } from '@/hooks/use-toast';
+import { useAlerts } from '@/hooks/useAlerts';
+import { Button } from '@/components/ui/button';
+import { Package } from 'lucide-react';
+import InventoryTable from '@/components/inventory/InventoryTable';
+import InventoryStats from '@/components/inventory/InventoryStats';
+import InventoryHeader from '@/components/inventory/InventoryHeader';
+import InventoryFilters from '@/components/inventory/InventoryFilters';
+import LowStockAlert from '@/components/inventory/LowStockAlert';
 
 const Inventory = () => {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("all");
-  const [filteredItems, setFilteredItems] = useState<InventoryItem[]>([]);
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
-  const [items, setItems] = useState<InventoryItem[]>([]);
-  const [categories, setCategories] = useState<InventoryCategory[]>([]);
-  const [loading, setLoading] = useState(true);
-  const containerRef = useRef(null);
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showExportDialog, setShowExportDialog] = useState(false);
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  
+  const { 
+    items: inventoryItems, 
+    categories, 
+    loading, 
+    userUnit,
+    addItem,
+    updateItem, 
+    deleteItem, 
+    refreshItems 
+  } = useSupabaseInventory();
+
   const { toast } = useToast();
+  const { sendEmailForAlert } = useAlerts();
 
-  // Load data on component mount
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const [itemsData, categoriesData] = await Promise.all([
-          getInventoryItems(),
-          getInventoryCategories()
-        ]);
-        
-        setItems(itemsData);
-        setCategories([
-          ...categoriesData,
-          { id: "expiring", name: "Vencendo", icon: AlertTriangle }
-        ]);
-        setLoading(false);
-      } catch (error) {
-        console.error("Error loading inventory data:", error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível carregar os dados do inventário.",
-          variant: "destructive"
-        });
-      }
-    };
+  // Remove duplicates based on name and unit_id
+  const uniqueItems = inventoryItems.filter((item, index, self) => 
+    index === self.findIndex((i) => i.name === item.name && i.unit_id === item.unit_id)
+  );
 
-    loadData();
-  }, [toast]);
-
-  // Calculate expiring items (within 30 days)
-  const expiringItems = items.filter(item => {
-    if (!item.expiryDate) return false;
-    const today = new Date();
-    const expiryDate = new Date(item.expiryDate);
-    const timeDiff = expiryDate.getTime() - today.getTime();
-    const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
-    return daysDiff <= 30 && daysDiff > 0;
+  const filteredItems = uniqueItems.filter(item => {
+    const categoryName = item.categories?.name || 'Sem categoria';
+    const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         categoryName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (item.supplier || '').toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesCategory = selectedCategory === "all" || item.category_id === selectedCategory;
+    
+    return matchesSearch && matchesCategory;
   });
 
-  useEffect(() => {
-    if (loading) return;
+  const lowStockItems = uniqueItems.filter(item => item.current_stock <= item.min_stock);
 
-    let filtered = items;
-
-    if (searchQuery) {
-      filtered = filtered.filter((item) =>
-        item.name.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+  const handleSelectItem = (itemId: string) => {
+    const newSelected = new Set(selectedItems);
+    if (newSelected.has(itemId)) {
+      newSelected.delete(itemId);
+    } else {
+      newSelected.add(itemId);
     }
-
-    if (selectedCategory === "expiring") {
-      filtered = expiringItems;
-    } else if (selectedCategory !== "all") {
-      filtered = filtered.filter((item) => item.category === selectedCategory);
-    }
-
-    setFilteredItems(filtered);
-
-    // Animation when filter changes
-    const ctx = gsap.context(() => {
-      gsap.fromTo(
-        ".inventory-item",
-        { opacity: 0, x: 10 },
-        {
-          opacity: 1,
-          x: 0,
-          duration: 0.4,
-          stagger: 0.05,
-          ease: "power2.out",
-        }
-      );
-    }, containerRef);
-
-    return () => ctx.revert();
-  }, [searchQuery, selectedCategory, items, expiringItems, loading]);
-
-  useEffect(() => {
-    if (loading) return;
-
-    // Initial animation
-    const ctx = gsap.context(() => {
-      gsap.fromTo(
-        ".inventory-filters",
-        { opacity: 0, x: 20 },
-        { opacity: 1, x: 0, duration: 1, ease: "power2.out" }
-      );
-
-      gsap.fromTo(
-        ".item-list",
-        { opacity: 0, x: 20 },
-        {
-          opacity: 1,
-          x: 0,
-          duration: 1,
-          stagger: 0.05,
-          delay: 0.2,
-          ease: "power2.out",
-        }
-      );
-    }, containerRef);
-
-    return () => ctx.revert();
-  }, [loading]);
-
-  const handleCategoryChange = (categoryId: string) => {
-    setSelectedCategory(categoryId);
+    setSelectedItems(newSelected);
   };
 
-  const handleUpdateItem = async (itemId: number, updatedData: any) => {
-    try {
-      await updateInventoryItem(itemId, updatedData);
-      setItems(prevItems => 
-        prevItems.map(item => 
-          item.id === itemId ? { ...item, ...updatedData } : item
-        )
-      );
-      
-      toast({
-        title: "Item atualizado",
-        description: "As informações foram salvas com sucesso.",
-      });
-    } catch (error) {
-      console.error("Error updating item:", error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível atualizar o item.",
-        variant: "destructive"
-      });
+  const handleSelectAll = () => {
+    if (selectedItems.size === filteredItems.length) {
+      setSelectedItems(new Set());
+    } else {
+      setSelectedItems(new Set(filteredItems.map(item => item.id)));
     }
   };
 
-  const handleReserveItem = async (itemId: number, quantity: number) => {
-    try {
-      await reserveInventoryItem(itemId, quantity);
-      setItems(prevItems => 
-        prevItems.map(item => 
-          item.id === itemId 
-            ? { 
-                ...item, 
-                reservedForAppointments: item.reservedForAppointments + quantity,
-                stock: item.stock - quantity 
-              } 
-            : item
-        )
-      );
-      
-      toast({
-        title: "Item reservado",
-        description: `${quantity} unidades foram reservadas para agendamento.`,
-      });
-    } catch (error) {
-      console.error("Error reserving item:", error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível reservar o item.",
-        variant: "destructive"
-      });
+  const handleDeleteSelected = async () => {
+    for (const itemId of selectedItems) {
+      await deleteItem(itemId);
     }
+    setSelectedItems(new Set());
+    refreshItems();
   };
 
-  const handleRequestRestock = (itemId: number) => {
-    const item = items.find(i => i.id === itemId);
+  const handleExport = () => {
     toast({
-      title: "Solicitação enviada",
-      description: `Solicitação de reposição para ${item?.name} foi enviada ao responsável.`,
+      title: "Exportação iniciada",
+      description: "Os dados do inventário estão sendo exportados."
+    });
+    setShowExportDialog(false);
+  };
+
+  const handleAddSuccess = () => {
+    setShowAddDialog(false);
+    refreshItems();
+    toast({
+      title: "Item adicionado",
+      description: "O item foi adicionado ao inventário com sucesso."
     });
   };
 
-  if (loading) {
+  const handleUpdateSuccess = () => {
+    refreshItems();
+    toast({
+      title: "Item atualizado",
+      description: "O item foi atualizado com sucesso."
+    });
+  };
+
+  const handleLowStockAlert = (item: any) => {
+    sendEmailForAlert({
+      id: `stock-${item.id}`,
+      type: "stock",
+      priority: "high",
+      title: `Estoque Baixo - ${item.name}`,
+      description: `Apenas ${item.current_stock} ${item.unit} restantes (mínimo: ${item.min_stock})`,
+      item: item.name,
+      currentStock: item.current_stock,
+      minStock: item.min_stock,
+      unit: item.unit,
+      createdAt: new Date(),
+      status: "active",
+      isRead: false
+    });
+  };
+
+  if (!userUnit) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 dark:border-white mx-auto"></div>
-          <p className="mt-4 text-gray-500 dark:text-gray-400">Carregando inventário...</p>
+          <Package className="h-12 w-12 text-neutral-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-neutral-700 dark:text-neutral-300">
+            Unidade não encontrada
+          </h3>
+          <p className="text-neutral-500 dark:text-neutral-400">
+            Você precisa estar associado a uma unidade para acessar o inventário.
+          </p>
         </div>
       </div>
     );
   }
 
   return (
-    <div ref={containerRef} className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-800 dark:text-white">
-          Inventário
-        </h1>
-        <p className="text-gray-500 dark:text-gray-400 mt-1">
-          Gerencie os itens de laboratório com controle avançado
-        </p>
-      </div>
+    <div className="space-y-6">
+      <InventoryHeader
+        unitName={userUnit.name}
+        categories={categories}
+        onAddSuccess={handleAddSuccess}
+        onExport={handleExport}
+        showAddDialog={showAddDialog}
+        setShowAddDialog={setShowAddDialog}
+        showExportDialog={showExportDialog}
+        setShowExportDialog={setShowExportDialog}
+      />
 
-      {/* Dashboard de Saúde do Estoque */}
-      <InventoryStockHealth items={items} expiringItems={expiringItems} />
+      <LowStockAlert lowStockItems={lowStockItems} />
 
-      {/* Filters */}
-      <Card className="inventory-filters">
-        <CardContent className="p-4 bg-neutral-100/80 dark:bg-neutral-800/80">
-          <div className="flex flex-col gap-4">
-            <div className="relative w-full">
-              <Search
-                className="absolute left-3 top-3 transform text-gray-400"
-                size={18}
-              />
-              <Input
-                placeholder="Buscar item..."
-                className="pl-10 w-full rounded-md bg-white dark:bg-neutral-700/40"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
+      <InventoryStats items={uniqueItems} />
 
-            <div className="flex flex-col sm:flex-row gap-3 justify-between items-start">
-              {/* Category filter */}
-              <div className="w-full sm:flex-1">
-                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600">
-                  {categories.map((category) => (
-                    <button
-                      key={category.id}
-                      className={`px-4 py-2 text-sm font-medium whitespace-nowrap flex-shrink-0 flex items-center gap-2 ${
-                        selectedCategory === category.id
-                          ? "bg-lab-blue text-white dark:bg-lab-blue/80"
-                          : "bg-white text-gray-700 hover:bg-gray-100 dark:bg-neutral-700/80 dark:text-gray-300 dark:hover:bg-gray-700"
-                      } rounded-md border border-gray-200 dark:border-gray-700 transition-colors`}
-                      onClick={() => handleCategoryChange(category.id)}
-                    >
-                      {category.icon && <category.icon size={16} />}
-                      {category.name}
-                      {category.id === "expiring" && expiringItems.length > 0 && (
-                        <Badge variant="destructive" className="ml-1 text-xs">
-                          {expiringItems.length}
-                        </Badge>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </div>
+      <InventoryFilters
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        selectedCategory={selectedCategory}
+        setSelectedCategory={setSelectedCategory}
+        categories={categories}
+      />
 
-              <div className="flex gap-2">
-                <InventoryExportDialog 
-                  items={filteredItems}
-                  isOpen={isExportDialogOpen}
-                  setIsOpen={setIsExportDialogOpen}
-                />
-                
-                <InventoryAddItemDialog 
-                  isOpen={isAddDialogOpen}
-                  setIsOpen={setIsAddDialogOpen}
-                  categories={categories.filter(c => c.id !== "all" && c.id !== "expiring")}
-                  onAddItem={(newItem) => {
-                    setItems(prev => [...prev, { ...newItem, id: Date.now() }]);
-                    toast({
-                      title: "Item adicionado",
-                      description: `${newItem.name} foi adicionado ao inventário.`,
-                    });
-                  }}
-                />
-              </div>
-            </div>
+      {selectedItems.size > 0 && (
+        <div className="flex items-center justify-between bg-neutral-100 dark:bg-neutral-800 p-2 rounded-md">
+          <span className="text-sm font-medium ml-2">
+            {selectedItems.size} {selectedItems.size === 1 ? 'item' : 'itens'} selecionados
+          </span>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setSelectedItems(new Set())}
+            >
+              Limpar
+            </Button>
+            <Button 
+              variant="destructive" 
+              size="sm"
+              onClick={handleDeleteSelected}
+            >
+              <Trash className="h-4 w-4 mr-1" />
+              Excluir
+            </Button>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Items List */}
-      <div className="grid grid-cols-1 xs:grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 item-list">
-        {filteredItems.map((item) => (
-          <InventoryItemCard
-            key={item.id}
-            item={item}
-            onUpdateItem={handleUpdateItem}
-            onReserveItem={handleReserveItem}
-            onRequestRestock={handleRequestRestock}
-          />
-        ))}
-      </div>
-
-      {filteredItems.length === 0 && (
-        <div className="text-center py-10">
-          <p className="text-gray-500 dark:text-gray-400">
-            Nenhum item encontrado com os filtros aplicados.
-          </p>
         </div>
+      )}
+
+      {loading ? (
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto text-neutral-500" />
+            <p className="mt-2 text-neutral-500">Carregando inventário...</p>
+          </div>
+        </div>
+      ) : filteredItems.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center h-64">
+            <AlertCircle className="h-10 w-10 text-neutral-400 mb-4" />
+            <h3 className="text-lg font-medium text-neutral-700 dark:text-neutral-300">
+              Nenhum item encontrado
+            </h3>
+            <p className="text-neutral-500 dark:text-neutral-400 text-center max-w-md mt-2">
+              {searchTerm 
+                ? `Não encontramos itens correspondentes à sua busca "${searchTerm}".` 
+                : "Não há itens no inventário para esta categoria."}
+            </p>
+            <Button 
+              className="mt-4"
+              onClick={() => setShowAddDialog(true)}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Adicionar Item
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <InventoryTable 
+          items={filteredItems}
+          selectedItems={selectedItems}
+          onSelectItem={handleSelectItem}
+          onSelectAll={handleSelectAll}
+          onUpdateItem={updateItem}
+          onDeleteItem={deleteItem}
+          onUpdateSuccess={handleUpdateSuccess}
+          onLowStockAlert={handleLowStockAlert}
+        />
       )}
     </div>
   );

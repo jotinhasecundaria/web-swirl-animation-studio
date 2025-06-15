@@ -28,7 +28,7 @@ const QuickActionsCard: React.FC = () => {
       title: "Agendamentos Hoje",
       description: "8 sessões programadas",
       icon: Calendar,
-      link: "/appointments",
+      link: "/orders",
       urgency: "medium"
     },
     {
@@ -40,17 +40,8 @@ const QuickActionsCard: React.FC = () => {
     }
   ];
 
-  const getUrgencyIndicator = (urgency: string) => {
-    switch (urgency) {
-      case "high": return "border-l-4 border-red-500";
-      case "medium": return "border-l-4 border-yellow-500";
-      case "low": return "border-l-4 border-indigo-500";
-      default: return "";
-    }
-  };
-
   return (
-    <Card className="bg-gradient-to-br from-white to-gray-50 dark:from-neutral-950/70 dark:to-neutral-950 rounded-lg shadow-lg border border-gray-200 dark:border-neutral-800">
+    <Card className="bg-white dark:bg-neutral-950/50 border-neutral-200 dark:border-neutral-800 rounded-lg shadow-lg h-full">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center justify-between text-lg font-bold text-gray-800 dark:text-gray-100">
           <span className="flex items-center gap-2">
@@ -67,21 +58,21 @@ const QuickActionsCard: React.FC = () => {
           </div>
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
+      <CardContent className="h-full">
+        <div className="space-y-4 h-full flex flex-col mt-2">
           {quickActions.map((action, index) => (
             <Link
               key={index}
               to={action.link}
-              className={`block p-3 bg-gray-300/40 dark:bg-neutral-900/60 rounded-xl hover:bg-gray-300/80 dark:hover:bg-gray-800 transition-colors border border-gray-200 dark:border-neutral-900 ${getUrgencyIndicator(action.urgency)}`}
+              className={`block p-3 bg-gradient-to-r from-indigo-50/80 to-blue-50/80 dark:from-indigo-950/40 dark:to-blue-950/40 dark:hover:to-blue-950/60 transition-all duration-500 rounded-xl hover:shadow-sm border-none`}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-gray-50 dark:bg-neutral-700 rounded-lg text-indigo-600 dark:text-indigo-300">
-                    <action.icon size={14} />
+                  <div className="p-2 bg-gradient-to-br from-indigo-500/80 to-blue-800/80 rounded-lg text-white shadow-sm">
+                    <action.icon size={16} />
                   </div>
                   <div>
-                    <div className="font-medium text-sm text-gray-800 dark:text-gray-200">
+                    <div className="font-semibold text-sm text-gray-800 dark:text-gray-200">
                       {action.title}
                     </div>
                     <div className="text-xs text-gray-500 dark:text-gray-400">
@@ -95,7 +86,7 @@ const QuickActionsCard: React.FC = () => {
           ))}
 
           {/* Alerts Feed */}
-          <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-800">
+          <div className="mt-4 p-3 bg-gradient-to-r from-red-50/80 to-orange-50/80 dark:from-red-950/40 dark:to-orange-950/40 rounded-xl border border-red-200 dark:border-red-800/50">
             <div className="flex items-center gap-2 mb-2">
               <AlertTriangle size={14} className="text-red-600 dark:text-red-400" />
               <span className="text-sm font-medium text-red-700 dark:text-red-300">
@@ -103,9 +94,9 @@ const QuickActionsCard: React.FC = () => {
               </span>
             </div>
             <div className="space-y-1 text-xs text-red-600 dark:text-red-400">
-              <div>⚠️ Etanol Absoluto: 3L / Min 5L</div>
-              <div>⚠️ Luvas Nitrila: Estoque baixo</div>
-              <div>⚠️ Reagente X: Vence em 5 dias</div>
+              <div> Etanol Absoluto: 3L / Min 5L</div>
+              <div> Luvas Nitrila: Estoque baixo</div>
+              <div> Reagente X: Vence em 5 dias</div>
             </div>
           </div>
         </div>

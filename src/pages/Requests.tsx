@@ -1,405 +1,124 @@
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { format } from "date-fns";
-import { Calendar as CalendarIcon, Search, Building, Database, FileText, User, Stethoscope, DollarSign } from "lucide-react";
-import { Calendar } from "@/components/ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import ExamsStats from "@/components/exams/ExamsStats";
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Search, Filter, Plus } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import ExamsStats from '@/components/exams/ExamsStats';
+import ExamDetailsCard from '@/components/exams/ExamDetailsCard';
+import { useSupabaseAppointments } from '@/hooks/useSupabaseAppointments';
+import { useQuery } from '@tanstack/react-query';
+import { examDetailsService } from '@/services/examDetailsService';
 
-// Mock data for exams
-const mockExams = [
-  { 
-    id: '001',
-    patient: 'João Silva',
-    type: 'Hemograma',
-    date: new Date(2024, 4, 15), 
-    doctor: 'Dra. Ana Souza',
-    laboratory: 'LabTech',
-    unit: 'Unidade Centro',
-    cost: 80.00,
-    status: 'Concluído',
-    result: 'Normal'
-  },
-  { 
-    id: '002',
-    patient: 'Maria Santos',
-    type: 'Glicemia',
-    date: new Date(2024, 4, 16), 
-    doctor: 'Dr. Carlos Mendes',
-    laboratory: 'BioLab',
-    unit: 'Unidade Norte',
-    cost: 45.00,
-    status: 'Concluído',
-    result: 'Alterado'
-  },
-  { 
-    id: '003',
-    patient: 'Pedro Oliveira',
-    type: 'Colonoscopia',
-    date: new Date(2024, 4, 17), 
-    doctor: 'Dra. Lucia Freitas',
-    laboratory: 'MedDiag',
-    unit: 'Unidade Sul',
-    cost: 550.00,
-    status: 'Pendente',
-    result: '-'
-  },
-  { 
-    id: '004',
-    patient: 'Ana Pereira',
-    type: 'Ultrassom',
-    date: new Date(2024, 4, 18), 
-    doctor: 'Dr. Roberto Castro',
-    laboratory: 'ImageLab',
-    unit: 'Unidade Leste',
-    cost: 280.00,
-    status: 'Concluído',
-    result: 'Normal'
-  },
-  { 
-    id: '005',
-    patient: 'Carlos Ribeiro',
-    type: 'Raio-X',
-    date: new Date(2024, 4, 19), 
-    doctor: 'Dra. Fernanda Lima',
-    laboratory: 'ImageLab',
-    unit: 'Unidade Centro',
-    cost: 180.00,
-    status: 'Concluído',
-    result: 'Alterado'
-  },
-  { 
-    id: '006',
-    patient: 'Luiza Martins',
-    type: 'Eletrocardiograma',
-    date: new Date(2024, 4, 20), 
-    doctor: 'Dr. Paulo Vieira',
-    laboratory: 'CardioLab',
-    unit: 'Unidade Norte',
-    cost: 220.00,
-    status: 'Pendente',
-    result: '-'
-  },
-];
+const Requests = () => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const { examTypes, loading } = useSupabaseAppointments();
 
-// Exam types for filtering
-const examTypes = [
-  'Todos Exames',
-  'Hemograma',
-  'Glicemia',
-  'Colonoscopia',
-  'Ultrassom',
-  'Raio-X',
-  'Eletrocardiograma'
-];
-
-// Units for filtering
-const units = [
-  'Todas Unidades',
-  'Unidade Centro',
-  'Unidade Norte',
-  'Unidade Sul',
-  'Unidade Leste'
-];
-
-// Laboratories for filtering
-const laboratories = [
-  'Todos Labs',
-  'LabTech',
-  'BioLab',
-  'MedDiag',
-  'ImageLab',
-  'CardioLab'
-];
-
-const Requests: React.FC = () => {
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const [selectedType, setSelectedType] = useState<string>('Todos Exames');
-  const [selectedUnit, setSelectedUnit] = useState<string>('Todas Unidades');
-  const [selectedLaboratory, setSelectedLaboratory] = useState<string>('Todos Labs');
-  const [exams, setExams] = useState(mockExams);
-
-  // Filter exams based on search, date, type, unit and laboratory
-  const filteredExams = exams.filter(exam => {
-    const matchesSearch = 
-      exam.patient.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      exam.doctor.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      exam.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      exam.laboratory.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      exam.unit.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesDate = selectedDate 
-      ? exam.date.toDateString() === selectedDate.toDateString() 
-      : true;
-    
-    const matchesType = selectedType === 'Todos Exames' || exam.type === selectedType;
-    
-    const matchesUnit = selectedUnit === 'Todas Unidades' || exam.unit === selectedUnit;
-    
-    const matchesLaboratory = selectedLaboratory === 'Todos Labs' || exam.laboratory === selectedLaboratory;
-    
-    return matchesSearch && matchesDate && matchesType && matchesUnit && matchesLaboratory;
+  const { data: detailedExams, isLoading: detailsLoading } = useQuery({
+    queryKey: ['detailed-exams'],
+    queryFn: () => examDetailsService.getAllExamsWithMaterials(),
+    enabled: examTypes.length > 0
   });
 
-  // Calculate total cost of filtered exams
-  const totalCost = filteredExams.reduce((sum, exam) => sum + exam.cost, 0);
+  const categories = [
+    { id: 'all', name: 'Todos', count: examTypes.length },
+    { id: 'Hematologia', name: 'Hematologia', count: examTypes.filter(e => e.category === 'Hematologia').length },
+    { id: 'Bioquímica', name: 'Bioquímica', count: examTypes.filter(e => e.category === 'Bioquímica').length },
+    { id: 'Endocrinologia', name: 'Endocrinologia', count: examTypes.filter(e => e.category === 'Endocrinologia').length },
+    { id: 'Cardiologia', name: 'Cardiologia', count: examTypes.filter(e => e.category === 'Cardiologia').length },
+    { id: 'Uroanálise', name: 'Uroanálise', count: examTypes.filter(e => e.category === 'Uroanálise').length },
+    { id: 'Microbiologia', name: 'Microbiologia', count: examTypes.filter(e => e.category === 'Microbiologia').length },
+  ];
 
-  // Reset all filters
-  const resetFilters = () => {
-    setSearchQuery('');
-    setSelectedDate(undefined);
-    setSelectedType('Todos Exames');
-    setSelectedUnit('Todas Unidades');
-    setSelectedLaboratory('Todos Labs');
-  };
+  const filteredExams = detailedExams?.filter(exam => {
+    const matchesSearch = exam.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (exam.description && exam.description.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesCategory = selectedCategory === 'all' || exam.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  }) || [];
+
+  if (loading || detailsLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 dark:border-white mx-auto"></div>
+          <p className="mt-4 text-gray-500 dark:text-gray-400">Carregando exames...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">Exames</h1>
+      <div>
+        <h1 className="text-3xl font-bold text-gray-800 dark:text-white">
+          Tipos de Exames
+        </h1>
+        <p className="text-gray-500 dark:text-gray-400 mt-1">
+          Gerencie os tipos de exames disponíveis no laboratório
+        </p>
       </div>
-      
-      <ExamsStats exams={exams} />
-      
-      <Card className="overflow-hidden bg-white dark:bg-neutral-900/50 border-neutral-200 dark:border-neutral-800">
-        <CardHeader className="bg-neutral-50 dark:bg-neutral-800/50 border-b border-neutral-200 dark:border-neutral-700 p-4">
-          <CardTitle className="text-base md:text-xl">
-            <div className="space-y-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-neutral-400" />
-                <Input
-                  placeholder="Buscar por paciente, médico, tipo de exame..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 w-full border rounded-md font-normal bg-white dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 focus:border-blue-500 focus:ring-blue-500"
-                />
-              </div>
-              
-              <div className="flex flex-wrap gap-3">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "justify-start text-left font-normal text-xs md:text-sm h-9 bg-white dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700",
-                        !selectedDate && "text-neutral-500 dark:text-neutral-400"
-                      )}
-                      size="sm"
-                    >
-                      <CalendarIcon className="mr-1 h-3 w-3 md:h-4 md:w-4" />
-                      {selectedDate ? format(selectedDate, "dd/MM/yyyy") : "Filtrar por data"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={selectedDate}
-                      onSelect={setSelectedDate}
-                      initialFocus
-                      className="p-3 pointer-events-auto"
-                    />
-                  </PopoverContent>
-                </Popover>
-                
-                <Select value={selectedType} onValueChange={setSelectedType}>
-                  <SelectTrigger className="w-[130px] md:w-[180px] h-9 text-xs md:text-sm font-normal bg-white dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700">
-                    <SelectValue placeholder="Tipo de exame" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {examTypes.map((type) => (
-                        <SelectItem key={type} value={type}>
-                          {type}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-                
-                <Select value={selectedUnit} onValueChange={setSelectedUnit}>
-                  <SelectTrigger className="w-[130px] md:w-[180px] h-9 text-xs md:text-sm font-normal bg-white dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700">
-                    <SelectValue placeholder="Unidade" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {units.map((unit) => (
-                        <SelectItem key={unit} value={unit}>
-                          {unit}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-                
-                <Select value={selectedLaboratory} onValueChange={setSelectedLaboratory}>
-                  <SelectTrigger className="w-[130px] md:w-[180px] h-9 text-xs md:text-sm font-normal bg-white dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700">
-                    <SelectValue placeholder="Laboratório" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {laboratories.map((lab) => (
-                        <SelectItem key={lab} value={lab}>
-                          {lab}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-                
-                <Button 
-                  variant="outline" 
-                  onClick={resetFilters}
-                  className="whitespace-nowrap text-xs md:text-sm h-9 bg-white dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700"
-                  size="sm"
-                >
-                  Limpar filtros
-                </Button>
-              </div>
-            </div>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="px-0 pt-0">
-          <div className="p-3 md:py-4 px-6 bg-neutral-50 dark:bg-neutral-800/50 border-b border-neutral-200 dark:border-neutral-700 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-            <div>
-              <span className="text-sm md:text-base text-neutral-600 dark:text-neutral-300">
-                Exames encontrados: <strong>{filteredExams.length}</strong>
-              </span>
-            </div>
-            <div>
-              <span className="text-sm md:text-base font-medium">
-                Total de despesas: <strong className="text-emerald-600 dark:text-emerald-400">R$ {totalCost.toFixed(2)}</strong>
-              </span>
-            </div>
-          </div>
-          
-          <div className="p-6 bg-white dark:bg-neutral-900/50">
-            <ScrollArea className="h-[600px] w-full">
-              {filteredExams.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {filteredExams.map((exam) => (
-                    <Card key={exam.id} className="relative bg-white dark:bg-neutral-900/50 hover:shadow-lg transition-all duration-300 border-l-4 border-l-blue-500 hover:border-l-blue-600 border-neutral-200 dark:border-neutral-800">
-                      <CardHeader className="pb-3">
-                        <div className="flex justify-between items-start">
-                          <div className="flex items-center space-x-2">
-                            <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                              <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                            </div>
-                            <div>
-                              <CardTitle className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-                                {exam.type}
-                              </CardTitle>
-                              <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                                ID: {exam.id}
-                              </p>
-                            </div>
-                          </div>
-                          <Badge className={`text-xs ${
-                            exam.status === 'Concluído' 
-                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-800 dark:text-emerald-100' 
-                              : 'bg-amber-100 text-amber-800 dark:bg-amber-800 dark:text-amber-100'
-                          }`} variant="secondary">
-                            {exam.status}
-                          </Badge>
-                        </div>
-                      </CardHeader>
-                      
-                      <CardContent className="space-y-4 mt-2">
-                        <div className="flex items-center space-x-2">
-                          <User className="h-4 w-4 text-neutral-500 dark:text-neutral-400" />
-                          <div className="pl-2">
-                            <p className="text-xs text-neutral-500 dark:text-neutral-400">Paciente</p>
-                            <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">{exam.patient}</p>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center space-x-2">
-                          <Stethoscope className="h-4 w-4 text-neutral-500 dark:text-neutral-400" />
-                          <div className="pl-2">
-                            <p className="text-xs text-neutral-500 dark:text-neutral-400">Médico</p>
-                            <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">{exam.doctor}</p>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center space-x-2">
-                          <CalendarIcon className="h-4 w-4 text-neutral-500 dark:text-neutral-400" />
-                          <div className="pl-2">
-                            <p className="text-xs text-neutral-500 dark:text-neutral-400">Data</p>
-                            <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">{format(exam.date, "dd/MM/yyyy")}</p>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center space-x-2">
-                          <Database className="h-3 w-3 text-neutral-500 dark:text-neutral-400" />
-                          <div className="pl-2">
-                            <p className="text-xs text-neutral-500 dark:text-neutral-400">Lab</p>
-                            <p className="text-xs font-medium text-neutral-900 dark:text-neutral-100">{exam.laboratory}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Building className="h-3 w-3 text-neutral-500 dark:text-neutral-400" />
-                          <div className="pl-2">
-                            <p className="text-xs text-neutral-500 dark:text-neutral-400">Unidade</p>
-                            <p className="text-xs font-medium text-neutral-900 dark:text-neutral-100">{exam.unit}</p>
-                          </div>
-                        </div>
 
-                        <div className="flex justify-between items-center pt-2 border-t border-neutral-200 dark:border-neutral-700">
-                          <div className="flex items-center space-x-1 mt-3">
-                            <DollarSign className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                            <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
-                              R$ {exam.cost.toFixed(2)}
-                            </span>
-                          </div>
-                          <div className="flex items-center text-left md:text-right mt-2">
-                            <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">Resultado:</p>
-                            <span className={`text-sm font-medium ml-3 ${
-                              exam.result === 'Alterado' 
-                                ? 'text-red-600 dark:text-red-400' 
-                                : exam.result === 'Normal'
-                                  ? 'text-emerald-600 dark:text-emerald-400'
-                                  : 'text-neutral-500 dark:text-neutral-400'
-                            }`}>
-                              {exam.result}
-                            </span>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <FileText className="h-12 w-12 text-neutral-400 dark:text-neutral-600 mx-auto mb-4" />
-                  <p className="text-lg font-medium text-neutral-500 dark:text-neutral-400 mb-2">
-                    Nenhum exame encontrado
-                  </p>
-                  <p className="text-sm text-neutral-400 dark:text-neutral-500">
-                    Tente ajustar os filtros para encontrar os exames desejados.
-                  </p>
-                </div>
-              )}
-            </ScrollArea>
+      <ExamsStats examTypes={examTypes} />
+
+      {/* Filters */}
+      <Card>
+        <CardContent className="p-4 bg-neutral-100/80 dark:bg-neutral-800/80">
+          <div className="flex flex-col gap-4">
+            <div className="relative w-full">
+              <Search className="absolute left-3 top-3 transform text-gray-400" size={18} />
+              <Input
+                placeholder="Buscar exame..."
+                className="pl-10 w-full rounded-md bg-white dark:bg-neutral-700/40"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+
+            <div className="flex gap-2 overflow-x-auto pb-2">
+              {categories.map((category) => (
+                <button
+                  key={category.id}
+                  className={`px-4 py-2 text-sm font-medium whitespace-nowrap flex-shrink-0 flex items-center gap-2 ${
+                    selectedCategory === category.id
+                      ? "bg-lab-blue text-white dark:bg-lab-blue/80"
+                      : "bg-white text-gray-700 hover:bg-gray-100 dark:bg-neutral-700/80 dark:text-gray-300 dark:hover:bg-gray-700"
+                  } rounded-md transition-colors`}
+                  onClick={() => setSelectedCategory(category.id)}
+                >
+                  {category.name}
+                  <Badge variant="secondary" className="ml-1 text-xs">
+                    {category.count}
+                  </Badge>
+                </button>
+              ))}
+            </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* Exams Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filteredExams.map((exam) => (
+          <ExamDetailsCard
+            key={exam.id}
+            exam={exam}
+            onSchedule={() => {
+              // TODO: Implementar navegação para agendamento
+              console.log('Agendar exame:', exam.name);
+            }}
+          />
+        ))}
+      </div>
+
+      {filteredExams.length === 0 && (
+        <div className="text-center py-10">
+          <p className="text-gray-500 dark:text-gray-400">
+            Nenhum exame encontrado com os filtros aplicados.
+          </p>
+        </div>
+      )}
     </div>
   );
 };

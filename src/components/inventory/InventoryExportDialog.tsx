@@ -1,163 +1,96 @@
 
-import React, { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Download } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+import React, { useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Download, FileText, Database } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { exportToCSV, exportToJSON } from '@/utils/exportUtils';
 
 interface InventoryExportDialogProps {
-  items: any[];
-  isOpen: boolean;
-  setIsOpen: (open: boolean) => void;
+  data: any[];
+  trigger?: React.ReactNode;
 }
 
-const InventoryExportDialog: React.FC<InventoryExportDialogProps> = ({
-  items,
-  isOpen,
-  setIsOpen,
-}) => {
-  const [exportFormat, setExportFormat] = useState("csv");
+const InventoryExportDialog: React.FC<InventoryExportDialogProps> = ({ data, trigger }) => {
+  const [format, setFormat] = useState<'csv' | 'json'>('csv');
+  const [isOpen, setIsOpen] = useState(false);
   const { toast } = useToast();
 
-  const exportToCSV = (data: any[]) => {
-    const headers = [
-      "Nome",
-      "Categoria", 
-      "Quantidade",
-      "Unidade",
-      "Localização",
-      "Tamanho",
-      "Validade",
-      "Último Uso",
-      "Status",
-      "Estoque Mínimo",
-      "Estoque Máximo",
-      "Reservadas"
-    ];
-
-    const csvContent = [
-      headers.join(","),
-      ...data.map(item => [
-        `"${item.name}"`,
-        `"${item.category}"`,
-        item.stock,
-        `"${item.unit}"`,
-        `"${item.location}"`,
-        `"${item.size || ''}"`,
-        `"${item.expiryDate || ''}"`,
-        `"${item.lastUsed}"`,
-        `"${item.status}"`,
-        item.minStock || 0,
-        item.maxStock || 0,
-        item.reservedForAppointments || 0
-      ].join(","))
-    ].join("\n");
-
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", `inventario_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = "hidden";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const exportToJSON = (data: any[]) => {
-    const jsonContent = JSON.stringify(data, null, 2);
-    const blob = new Blob([jsonContent], { type: "application/json" });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", `inventario_${new Date().toISOString().split('T')[0]}.json`);
-    link.style.visibility = "hidden";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
   const handleExport = () => {
-    if (items.length === 0) {
+    try {
+      const filename = `inventario_${new Date().toISOString().split('T')[0]}`;
+      
+      if (format === 'csv') {
+        exportToCSV(data, filename);
+      } else {
+        exportToJSON(data, filename);
+      }
+
       toast({
-        title: "Nenhum item para exportar",
-        description: "Não há itens disponíveis com os filtros aplicados.",
-        variant: "destructive",
+        title: 'Exportação realizada',
+        description: `Dados exportados em formato ${format.toUpperCase()}`,
       });
-      return;
+      
+      setIsOpen(false);
+    } catch (error) {
+      console.error('Erro ao exportar dados:', error);
+      toast({
+        title: 'Erro na exportação',
+        description: 'Não foi possível exportar os dados',
+        variant: 'destructive',
+      });
     }
-
-    if (exportFormat === "csv") {
-      exportToCSV(items);
-    } else if (exportFormat === "json") {
-      exportToJSON(items);
-    }
-
-    toast({
-      title: "Exportação concluída",
-      description: `${items.length} itens exportados em formato ${exportFormat.toUpperCase()}.`,
-    });
-
-    setIsOpen(false);
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="flex items-center gap-2">
-          <Download size={18} />
-          <span className="hidden sm:inline">Exportar</span>
-        </Button>
+        {trigger || (
+          <Button variant="outline" size="sm">
+            <Download className="w-4 h-4 mr-2" />
+            Exportar
+          </Button>
+        )}
       </DialogTrigger>
-      <DialogContent className="max-w-md">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Exportar Inventário</DialogTitle>
-          <DialogDescription>
-            Exporte os dados do inventário atual ({items.length} itens) para análise externa.
-          </DialogDescription>
         </DialogHeader>
-
-        <div className="space-y-4 py-4">
-          <div className="space-y-2">
+        <div className="space-y-4">
+          <div>
             <label className="text-sm font-medium">Formato de exportação</label>
-            <Select value={exportFormat} onValueChange={setExportFormat}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione o formato" />
+            <Select value={format} onValueChange={(value: 'csv' | 'json') => setFormat(value)}>
+              <SelectTrigger className="w-full mt-1">
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="csv">CSV (Excel compatível)</SelectItem>
-                <SelectItem value="json">JSON (Dados estruturados)</SelectItem>
+                <SelectItem value="csv">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4" />
+                    CSV (Excel)
+                  </div>
+                </SelectItem>
+                <SelectItem value="json">
+                  <div className="flex items-center gap-2">
+                    <Database className="w-4 h-4" />
+                    JSON
+                  </div>
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
-
-          <div className="text-sm text-gray-500 space-y-1">
-            <p><strong>CSV:</strong> Ideal para análise em Excel ou Google Sheets</p>
-            <p><strong>JSON:</strong> Formato estruturado para sistemas de terceiros</p>
+          
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" onClick={() => setIsOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleExport}>
+              <Download className="w-4 h-4 mr-2" />
+              Exportar
+            </Button>
           </div>
         </div>
-
-        <DialogFooter>
-          <Button onClick={handleExport} className="w-full">
-            <Download size={16} className="mr-2" />
-            Exportar {items.length} itens
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

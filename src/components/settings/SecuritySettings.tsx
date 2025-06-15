@@ -1,225 +1,271 @@
 
-import React, { useState } from 'react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { useToast } from "@/hooks/use-toast";
-import { Separator } from "@/components/ui/separator";
-import { Eye, EyeOff } from "lucide-react";
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { useToast } from '@/hooks/use-toast';
+import { useUserProfile } from '@/hooks/useUserProfile';
+import { Shield, Key, Clock, AlertTriangle } from 'lucide-react';
+
+interface SecuritySettings {
+  two_factor_enabled: boolean;
+  session_timeout: number;
+  login_notifications: boolean;
+  require_password_change: boolean;
+  allowed_ip_addresses: string[];
+}
 
 const SecuritySettings = () => {
-  const [showPassword, setShowPassword] = useState(false);
-  const [passwordForm, setPasswordForm] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: ''
+  const [settings, setSettings] = useState<SecuritySettings>({
+    two_factor_enabled: false,
+    session_timeout: 30,
+    login_notifications: true,
+    require_password_change: false,
+    allowed_ip_addresses: [],
   });
-  
-  const [settings, setSettings] = useState({
-    twoFactorAuth: false,
-    sessionTimeout: true,
-    accessLogs: true
-  });
-  
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const { profile } = useUserProfile();
 
-  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setPasswordForm(prev => ({
-      ...prev,
-      [name]: value
-    }));
+  useEffect(() => {
+    // Carregar configurações do localStorage por enquanto
+    const saved = localStorage.getItem('security_settings');
+    if (saved) {
+      try {
+        setSettings(JSON.parse(saved));
+      } catch (error) {
+        console.error('Erro ao carregar configurações:', error);
+      }
+    }
+  }, []);
+
+  const handleSaveSettings = async () => {
+    setLoading(true);
+    try {
+      // Salvar no localStorage por enquanto
+      localStorage.setItem('security_settings', JSON.stringify(settings));
+      
+      toast({
+        title: 'Configurações salvas',
+        description: 'Suas configurações de segurança foram atualizadas.',
+      });
+    } catch (error: any) {
+      console.error('Erro ao salvar configurações:', error);
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível salvar as configurações.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleToggle = (setting: string) => {
+  const handleChangePassword = async () => {
+    if (newPassword !== confirmPassword) {
+      toast({
+        title: 'Erro',
+        description: 'As senhas não coincidem.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      toast({
+        title: 'Erro',
+        description: 'A senha deve ter pelo menos 8 caracteres.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Simular mudança de senha por enquanto
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      
+      toast({
+        title: 'Senha alterada',
+        description: 'Sua senha foi alterada com sucesso.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível alterar a senha.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateSetting = (key: keyof SecuritySettings, value: any) => {
     setSettings(prev => ({
       ...prev,
-      [setting]: !prev[setting as keyof typeof prev]
+      [key]: value
     }));
-  };
-
-  const handleChangePassword = () => {
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      toast({
-        title: "Erro",
-        description: "As senhas não coincidem.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    if (passwordForm.newPassword.length < 8) {
-      toast({
-        title: "Erro",
-        description: "A nova senha deve ter pelo menos 8 caracteres.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    // Here you would typically send data to an API
-    toast({
-      title: "Senha atualizada",
-      description: "Sua senha foi alterada com sucesso."
-    });
-    
-    // Clear form
-    setPasswordForm({
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: ''
-    });
-  };
-
-  const handleSaveSettings = () => {
-    // Here you would typically send data to an API
-    toast({
-      title: "Configurações salvas",
-      description: "Suas configurações de segurança foram atualizadas."
-    });
   };
 
   return (
     <div className="space-y-6">
-      <Card className="border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900/50 shadow-sm">
+      <div>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Configurações de Segurança</h2>
+        <p className="text-gray-600 dark:text-gray-400">
+          Gerencie a segurança da sua conta
+          {profile?.unit?.name && ` na unidade ${profile.unit.name}`}
+        </p>
+      </div>
+
+      {/* Alterar Senha */}
+      <Card>
         <CardHeader>
-          <CardTitle className="text-xl text-neutral-900 dark:text-neutral-100">
+          <CardTitle className="flex items-center gap-2">
+            <Key className="h-5 w-5" />
             Alterar Senha
           </CardTitle>
-          <CardDescription className="text-neutral-600 dark:text-neutral-300">
-            Atualize sua senha de acesso ao sistema
-          </CardDescription>
+          <CardDescription>Atualize sua senha regularmente para manter sua conta segura</CardDescription>
         </CardHeader>
-        
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="currentPassword" className="text-neutral-900 dark:text-neutral-100">Senha Atual</Label>
-            <div className="relative">
-              <Input 
-                id="currentPassword"
-                name="currentPassword"
-                type={showPassword ? "text" : "password"}
-                value={passwordForm.currentPassword}
-                onChange={handlePasswordChange}
-                placeholder="Digite sua senha atual"
-                className="border-neutral-200 dark:border-neutral-700"
-              />
-              <button 
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-3 px-2 text-neutral-500"
-              >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
-            </div>
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="newPassword" className="text-neutral-900 dark:text-neutral-100">Nova Senha</Label>
-            <Input 
-              id="newPassword"
-              name="newPassword"
-              type={showPassword ? "text" : "password"}
-              value={passwordForm.newPassword}
-              onChange={handlePasswordChange}
-              placeholder="Digite a nova senha"
-              className="border-neutral-200 dark:border-neutral-700"
+            <Label htmlFor="current-password">Senha Atual</Label>
+            <Input
+              id="current-password"
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
             />
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="confirmPassword" className="text-neutral-900 dark:text-neutral-100">Confirme a Nova Senha</Label>
-            <Input 
-              id="confirmPassword"
-              name="confirmPassword"
-              type={showPassword ? "text" : "password"}
-              value={passwordForm.confirmPassword}
-              onChange={handlePasswordChange}
-              placeholder="Confirme a nova senha"
-              className="border-neutral-200 dark:border-neutral-700"
+            <Label htmlFor="new-password">Nova Senha</Label>
+            <Input
+              id="new-password"
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
             />
           </div>
-        </CardContent>
-        
-        <CardFooter className="justify-end border-t border-neutral-200 dark:border-neutral-700 pt-4">
+          
+          <div className="space-y-2">
+            <Label htmlFor="confirm-password">Confirmar Nova Senha</Label>
+            <Input
+              id="confirm-password"
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+            />
+          </div>
+          
           <Button 
             onClick={handleChangePassword}
-            className="bg-neutral-900 hover:bg-neutral-800 text-white dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-200"
+            disabled={loading || !currentPassword || !newPassword || !confirmPassword}
           >
-            Alterar Senha
+            {loading ? 'Alterando...' : 'Alterar Senha'}
           </Button>
-        </CardFooter>
+        </CardContent>
       </Card>
-      
-      <Card className="border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900/50 shadow-sm">
+
+      {/* Autenticação de Dois Fatores */}
+      <Card>
         <CardHeader>
-          <CardTitle className="text-xl text-neutral-900 dark:text-neutral-100">
-            Segurança da Conta
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="h-5 w-5" />
+            Autenticação de Dois Fatores
           </CardTitle>
-          <CardDescription className="text-neutral-600 dark:text-neutral-300">
-            Configure opções de segurança adicionais
-          </CardDescription>
+          <CardDescription>Adicione uma camada extra de segurança à sua conta</CardDescription>
         </CardHeader>
-        
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label htmlFor="twoFactorAuth" className="text-neutral-900 dark:text-neutral-100">Autenticação em Dois Fatores</Label>
-              <p className="text-sm text-neutral-500 dark:text-neutral-400">
-                Ative a verificação em duas etapas para mais segurança
-              </p>
+            <div>
+              <Label htmlFor="two-factor">Ativar 2FA</Label>
+              <p className="text-sm text-gray-500">Usar aplicativo autenticador para login</p>
             </div>
-            <Switch 
-              id="twoFactorAuth"
-              checked={settings.twoFactorAuth}
-              onCheckedChange={() => handleToggle('twoFactorAuth')}
+            <Switch
+              id="two-factor"
+              checked={settings.two_factor_enabled}
+              onCheckedChange={(checked) => updateSetting('two_factor_enabled', checked)}
             />
           </div>
           
-          <Separator className="bg-neutral-200 dark:bg-neutral-700" />
-          
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label htmlFor="sessionTimeout" className="text-neutral-900 dark:text-neutral-100">Timeout de Sessão</Label>
-              <p className="text-sm text-neutral-500 dark:text-neutral-400">
-                Encerre automaticamente sessões inativas após 30 minutos
+          {settings.two_factor_enabled && (
+            <div className="p-4 bg-blue-50 dark:bg-blue-950 rounded-lg">
+              <p className="text-sm text-blue-700 dark:text-blue-300">
+                Configure seu aplicativo autenticador escaneando o QR Code que aparecerá na próxima tela.
               </p>
             </div>
-            <Switch 
-              id="sessionTimeout"
-              checked={settings.sessionTimeout}
-              onCheckedChange={() => handleToggle('sessionTimeout')}
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Configurações de Sessão */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="h-5 w-5" />
+            Configurações de Sessão
+          </CardTitle>
+          <CardDescription>Configure o comportamento das suas sessões</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="session-timeout">Timeout da Sessão (minutos)</Label>
+            <Input
+              id="session-timeout"
+              type="number"
+              min="5"
+              max="480"
+              value={settings.session_timeout}
+              onChange={(e) => updateSetting('session_timeout', parseInt(e.target.value) || 30)}
             />
           </div>
           
-          <Separator className="bg-neutral-200 dark:bg-neutral-700" />
-          
           <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label htmlFor="accessLogs" className="text-neutral-900 dark:text-neutral-100">Registro de Acessos</Label>
-              <p className="text-sm text-neutral-500 dark:text-neutral-400">
-                Mantenha um registro de todos os acessos à sua conta
-              </p>
+            <div>
+              <Label htmlFor="login-notifications">Notificações de Login</Label>
+              <p className="text-sm text-gray-500">Receber email quando alguém fizer login na sua conta</p>
             </div>
-            <Switch 
-              id="accessLogs"
-              checked={settings.accessLogs}
-              onCheckedChange={() => handleToggle('accessLogs')}
+            <Switch
+              id="login-notifications"
+              checked={settings.login_notifications}
+              onCheckedChange={(checked) => updateSetting('login_notifications', checked)}
             />
           </div>
         </CardContent>
-        
-        <CardFooter className="justify-end border-t border-neutral-200 dark:border-neutral-700 pt-4">
-          <Button 
-            onClick={handleSaveSettings}
-            className="bg-neutral-900 hover:bg-neutral-800 text-white dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-200"
-          >
-            Salvar Configurações
-          </Button>
-        </CardFooter>
       </Card>
+
+      {/* Alerta de Segurança */}
+      <Card className="border-yellow-200 bg-yellow-50 dark:bg-yellow-950 dark:border-yellow-800">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-yellow-800 dark:text-yellow-200">
+            <AlertTriangle className="h-5 w-5" />
+            Último Login
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-yellow-700 dark:text-yellow-300">
+            Último acesso: Hoje às 14:30 de São Paulo, Brasil
+          </p>
+          <p className="text-sm text-yellow-600 dark:text-yellow-400 mt-1">
+            Se você não reconhece esta atividade, altere sua senha imediatamente.
+          </p>
+        </CardContent>
+      </Card>
+
+      <div className="flex justify-end">
+        <Button onClick={handleSaveSettings} disabled={loading}>
+          {loading ? 'Salvando...' : 'Salvar Configurações'}
+        </Button>
+      </div>
     </div>
   );
 };

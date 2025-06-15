@@ -1,5 +1,6 @@
 
-import React, { useRef, useEffect } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
+import React, { useRef, useEffect, memo, useMemo } from 'react';
 import { ResponsiveContainer, BarChart, Bar, LineChart, Line, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip, Legend, PieChart, Pie, Cell, RadialBar,
   PolarAngleAxis,
     RadarChart,
@@ -11,13 +12,21 @@ import { Progress } from '@/components/ui/progress';
 import GaugeChart from '@/components/ui/GaugeChart';
 
 // Define a consistent color palette for all charts
-// eslint-disable-next-line react-refresh/only-export-components
-export const CHART_COLORS = ['#8B5CF6', '#D946EF', '#F97316', '#0EA5E9', '#10B981', '#6366F1', '#EC4899', '#F59E0B'];
+const CHART_COLORS = ['#8B5CF6', '#D946EF', '#F97316', '#0EA5E9', '#10B981', '#6366F1', '#EC4899', '#F59E0B'];
 
-const DashboardChart = ({ type, data, title, description }) => {
+interface DashboardChartProps {
+  type: string;
+  data: any[];
+  title: string;
+  description: string;
+}
+
+const DashboardChart: React.FC<DashboardChartProps> = memo(({ type, data, title, description }) => {
   const chartRef = useRef(null);
 
   useEffect(() => {
+    if (!chartRef.current) return;
+    
     const ctx = gsap.context(() => {
       gsap.fromTo(
         chartRef.current,
@@ -29,26 +38,41 @@ const DashboardChart = ({ type, data, title, description }) => {
     return () => ctx.revert();
   }, []);
 
-  // Calculate total for percentage calculations
-  const total = data.reduce((sum, item) => sum + item.value, 0);
+  // Memoize expensive calculations with null safety
+  const total = useMemo(() => 
+    data.reduce((sum, item) => sum + (item?.value || 0), 0), 
+    [data]
+  );
 
-  const renderProgressBars = () => {
+  const renderProgressBars = useMemo(() => {
+    if (!data || data.length === 0) {
+      return (
+        <div className="space-y-3 sm:space-y-6 py-2 sm:py-4">
+          <p className="text-sm text-gray-500 dark:text-gray-400">Nenhum dado disponível</p>
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-3 sm:space-y-6 py-2 sm:py-4">
         {data.map((item, index) => {
-          const percentage = total > 0 ? Math.round((item.value / total) * 100) : 0;
+          // Add null safety checks
+          const itemValue = item?.value || 0;
+          const itemName = item?.name || `Item ${index + 1}`;
+          const percentage = total > 0 ? Math.round((itemValue / total) * 100) : 0;
+          
           return (
-            <div key={index} className="space-y-1 sm:space-y-2">
+            <div key={`${itemName}-${index}`} className="space-y-1 sm:space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
                   <div 
                     className="w-2 h-2 sm:w-3 sm:h-3 rounded-full mr-1 sm:mr-2" 
                     style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}
                   />
-                  <span className="text-xs sm:text-sm font-medium">{item.name}</span>
+                  <span className="text-xs sm:text-sm font-medium">{itemName}</span>
                 </div>
                 <div className="flex items-center space-x-2 sm:space-x-3">
-                  <span className="text-xs sm:text-sm font-bold">R$ {item.value.toFixed(2)}</span>
+                  <span className="text-xs sm:text-sm font-bold">R$ {itemValue.toFixed(2)}</span>
                   <span className="text-[10px] sm:text-xs px-1 sm:px-2 py-0.5 rounded-full font-medium">
                     {percentage}%
                   </span>
@@ -58,7 +82,7 @@ const DashboardChart = ({ type, data, title, description }) => {
                 value={percentage} 
                 className="h-1.5 sm:h-2.5"
                 style={{
-                  background: 'linear-gradient(to right, rgba(139, 92, 246, 0.2), rgba(217, 70, 239, 0.2))',
+                  background: 'linear-gradient(to right, rgba(228, 218, 253, 0.2), rgba(64, 45, 117, 0.3))',
                 }}
               />
             </div>
@@ -66,14 +90,32 @@ const DashboardChart = ({ type, data, title, description }) => {
         })}
       </div>
     );
-  };
+  }, [data, total]);
 
-  const renderChart = () => {
+  const renderChart = useMemo(() => {
+    // Add data validation
+    if (!data || data.length === 0) {
+      return (
+        <div className="flex items-center justify-center h-64">
+          <p className="text-gray-500 dark:text-gray-400">Nenhum dado disponível para exibir</p>
+        </div>
+      );
+    }
+
+    const commonTooltipStyle = {
+      backgroundColor: 'rgb(31 41 55)',
+      borderColor: 'rgb(55 65 81)',
+      borderRadius: '0.5rem',
+      color: 'rgb(243 244 246)',
+      fontSize: '12px',
+      padding: '8px'
+    };
+
     switch (type) {
       case 'bar':
         return (
           <ResponsiveContainer width="100%" height={400} minHeight={100}>
-            <BarChart data={data} margin={{  top: 10, right: 30, left:-30, bottom: 5 }} >
+            <BarChart data={data} margin={{  top: 10, right: 30, left:-25, bottom: 5 }} >
               <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.1} />
               <XAxis 
                 dataKey="name" 
@@ -87,14 +129,7 @@ const DashboardChart = ({ type, data, title, description }) => {
                 strokeOpacity={0.3}
               />
               <Tooltip 
-                contentStyle={{
-                  backgroundColor: 'rgb(31 41 55)',
-                  borderColor: 'rgb(55 65 81)',
-                  borderRadius: '0.5rem',
-                  color: 'rgb(243 244 246)',
-                  fontSize: '12px',
-                  padding: '8px'
-                }}
+                contentStyle={commonTooltipStyle}
                 itemStyle={{ color: 'rgb(243 244 246)' }}
               />
               <Legend wrapperStyle={{ fontSize: '14px' }} />
@@ -126,14 +161,7 @@ const DashboardChart = ({ type, data, title, description }) => {
                 strokeOpacity={0.3}
               />
               <Tooltip 
-                contentStyle={{
-                  backgroundColor: 'rgb(31 41 55)',
-                  borderColor: 'rgb(55 65 81)',
-                  borderRadius: '0.5rem',
-                  color: 'rgb(243 244 246)',
-                  fontSize: '12px',
-                  padding: '8px'
-                }}
+                contentStyle={commonTooltipStyle}
                 itemStyle={{ color: 'rgb(243 244 246)' }}
               />
               <Line 
@@ -179,14 +207,7 @@ const DashboardChart = ({ type, data, title, description }) => {
                 strokeOpacity={0.3}
               />
               <Tooltip 
-                contentStyle={{
-                  backgroundColor: 'rgb(31 41 55)',
-                  borderColor: 'rgb(55 65 81)',
-                  borderRadius: '0.5rem',
-                  color: 'rgb(243 244 246)',
-                  fontSize: '12px',
-                  padding: '8px'
-                }}
+                contentStyle={commonTooltipStyle}
                 itemStyle={{ color: 'rgb(243 244 246)' }}
               />
               <Legend wrapperStyle={{ fontSize: '12px' }} />
@@ -219,14 +240,7 @@ const DashboardChart = ({ type, data, title, description }) => {
                 domain={[0, 'dataMax']}
               />
               <Tooltip
-                contentStyle={{
-                  backgroundColor: 'rgb(31 41 55)',
-                  borderColor: 'rgb(55 65 81)',
-                  borderRadius: '0.5rem',
-                  color: 'rgb(243 244 246)',
-                  fontSize: '12px',
-                  padding: '8px',
-                }}
+                contentStyle={commonTooltipStyle}
                 itemStyle={{ color: 'rgb(243 244 246)' }}
               />
               <Radar
@@ -271,14 +285,7 @@ const DashboardChart = ({ type, data, title, description }) => {
                 ))}
               </Pie>
               <Tooltip 
-                contentStyle={{
-                  backgroundColor: 'rgb(31 41 55)',
-                  borderColor: 'rgb(55 65 81)',
-                  borderRadius: '0.5rem',
-                  color: 'rgb(243 244 246)',
-                  fontSize: '12px',
-                  padding: '8px'
-                }}
+                contentStyle={commonTooltipStyle}
                 itemStyle={{ color: 'rgb(243 244 246)' }}
               />
               <Legend 
@@ -291,26 +298,32 @@ const DashboardChart = ({ type, data, title, description }) => {
           </ResponsiveContainer>
         );
       case 'progress':
-        return renderProgressBars();
+        return renderProgressBars;
       case 'gauge':
-        return <GaugeChart value={data[0].value} size={200} title={title} />;
+        return <GaugeChart value={data[0]?.value || 0} size={200} title={title} />;
       default:
-        return null;
+        return (
+          <div className="flex items-center justify-center h-64">
+            <p className="text-gray-500 dark:text-gray-400">Tipo de gráfico não suportado: {type}</p>
+          </div>
+        );
     }
-  };
+  }, [type, data, title, renderProgressBars]);
 
   return (
-    <div 
+    <Card 
       ref={chartRef}
-      className="bg-gradient-to-br from-white to-gray-50 dark:from-neutral-950/70 dark:to-neutral-950 p-3 sm:p-4 md:p-6 rounded-xl shadow-lg transition-colors duration-300 "
+      className="bg-white dark:bg-neutral-950/50 border-neutral-200 dark:border-neutral-800 p-3 sm:p-4 md:p-6 rounded-xl shadow-lg transition-colors duration-300 "
     >
-      <div className="mb-3 sm:mb-6 p-3">
+      <CardContent className="mb-3 sm:mb-6 p-3">
         <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-1 sm:mb-2">{title}</h3>
         <p className=" sm:text-base text-gray-600 dark:text-gray-300">{description}</p>
-      </div>
-      {renderChart()}
-    </div>
+      </CardContent>
+      {renderChart}
+    </Card>
   );
-};
+});
+
+DashboardChart.displayName = 'DashboardChart';
 
 export default DashboardChart;
