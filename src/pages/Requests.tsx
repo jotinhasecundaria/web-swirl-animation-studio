@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -6,20 +7,28 @@ import { Search, Filter, Plus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import ExamsStats from '@/components/exams/ExamsStats';
 import ExamDetailsCard from '@/components/exams/ExamDetailsCard';
-import { useSupabaseAppointments } from '@/hooks/useSupabaseAppointments';
 import { useQuery } from '@tanstack/react-query';
 import { examDetailsService } from '@/services/examDetailsService';
+import { SkeletonExams } from '@/components/ui/skeleton-exams';
 
 const Requests = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const { examTypes, loading } = useSupabaseAppointments();
 
-  const { data: detailedExams, isLoading: detailsLoading } = useQuery({
+  // Usar apenas um hook para buscar todos os dados necessários
+  const { data: detailedExams, isLoading, error } = useQuery({
     queryKey: ['detailed-exams'],
     queryFn: () => examDetailsService.getAllExamsWithMaterials(),
-    enabled: examTypes.length > 0
+    retry: 3,
+    retryDelay: 1000
   });
+
+  console.log('Detailed exams data:', detailedExams);
+  console.log('Loading state:', isLoading);
+  console.log('Error:', error);
+
+  // Extrair exam types dos dados detalhados
+  const examTypes = detailedExams || [];
 
   const categories = [
     { id: 'all', name: 'Todos', count: examTypes.length },
@@ -31,19 +40,26 @@ const Requests = () => {
     { id: 'Microbiologia', name: 'Microbiologia', count: examTypes.filter(e => e.category === 'Microbiologia').length },
   ];
 
-  const filteredExams = detailedExams?.filter(exam => {
+  const filteredExams = examTypes.filter(exam => {
     const matchesSearch = exam.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (exam.description && exam.description.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesCategory = selectedCategory === 'all' || exam.category === selectedCategory;
     return matchesSearch && matchesCategory;
-  }) || [];
+  });
 
-  if (loading || detailsLoading) {
+  if (isLoading) {
+    return <SkeletonExams />;
+  }
+
+  if (error) {
+    console.error('Error loading exams:', error);
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 dark:border-white mx-auto"></div>
-          <p className="mt-4 text-gray-500 dark:text-gray-400">Carregando exames...</p>
+          <p className="text-red-500 dark:text-red-400 mb-2">Erro ao carregar exames</p>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">
+            Tente recarregar a página
+          </p>
         </div>
       </div>
     );
@@ -112,10 +128,13 @@ const Requests = () => {
         ))}
       </div>
 
-      {filteredExams.length === 0 && (
+      {filteredExams.length === 0 && !isLoading && (
         <div className="text-center py-10">
           <p className="text-gray-500 dark:text-gray-400">
-            Nenhum exame encontrado com os filtros aplicados.
+            {examTypes.length === 0 
+              ? "Nenhum exame encontrado na base de dados."
+              : "Nenhum exame encontrado com os filtros aplicados."
+            }
           </p>
         </div>
       )}
