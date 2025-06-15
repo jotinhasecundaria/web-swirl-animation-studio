@@ -11,6 +11,7 @@ import InventoryStats from '@/components/inventory/InventoryStats';
 import InventoryHeader from '@/components/inventory/InventoryHeader';
 import InventoryFilters from '@/components/inventory/InventoryFilters';
 import LowStockAlert from '@/components/inventory/LowStockAlert';
+import { SkeletonInventory } from '@/components/ui/skeleton-inventory';
 
 const Inventory = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
@@ -133,6 +134,10 @@ const Inventory = () => {
         </div>
       </div>
     );
+  }
+
+  if (loading) {
+    return <SkeletonInventory />;
   }
 
   return (

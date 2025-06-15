@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef } from "react";
 import { gsap } from "gsap";
 import DashboardChart from "@/components/DashboardChart.tsx";
@@ -18,6 +17,7 @@ import UnitSelectorCard from "@/components/dashboard/UnitSelectorCard";
 
 // Data imports
 import { useConsumptionData, useAppointmentTrends } from "@/hooks/useDashboardData";
+import { SkeletonDashboard } from "@/components/ui/skeleton-dashboard";
 
 const Dashboard: React.FC = () => {
   const dashboardRef = useRef<HTMLDivElement>(null);
@@ -60,14 +60,7 @@ const Dashboard: React.FC = () => {
   }, [loading]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 dark:border-white mx-auto bg-neutral-800"></div>
-          <p className="mt-4 text-gray-500 dark:text-gray-400">Carregando dashboard...</p>
-        </div>
-      </div>
-    );
+    return <SkeletonDashboard />;
   }
 
   return (

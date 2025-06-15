@@ -29,6 +29,54 @@ code {
     monospace;
 }
 
+/* Custom Scrollbar Styles */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 10px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.5);
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+  transition: background-color 0.2s ease;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(107, 114, 128, 0.7);
+  background-clip: content-box;
+}
+
+.dark *::-webkit-scrollbar-thumb {
+  background: rgba(75, 85, 99, 0.5);
+  background-clip: content-box;
+}
+
+.dark *::-webkit-scrollbar-thumb:hover {
+  background: rgba(107, 114, 128, 0.7);
+  background-clip: content-box;
+}
+
+/* Remove scrollbar arrows */
+*::-webkit-scrollbar-button {
+  display: none;
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;
