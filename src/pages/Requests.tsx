@@ -27,7 +27,7 @@ const Requests = () => {
   console.log('Loading state:', isLoading);
   console.log('Error:', error);
 
-  // Extrair exam types dos dados detalhados
+  // Usar os dados detalhados diretamente
   const examTypes = detailedExams || [];
 
   const categories = [
