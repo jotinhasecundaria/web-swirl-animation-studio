@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,12 +15,14 @@ import InventoryFilters from '@/components/inventory/InventoryFilters';
 import InventoryStockHealth from '@/components/inventory/InventoryStockHealth';
 import { SkeletonInventory } from '@/components/ui/skeleton-inventory';
 import { useAuthContext } from '@/context/AuthContext';
+import { InventoryItem } from '@/types/inventory';
 
 const Inventory = () => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [stockFilter, setStockFilter] = useState('all');
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const { toast } = useToast();
   const { profile } = useAuthContext();
 
@@ -31,7 +32,8 @@ const Inventory = () => {
     loading,
     addItem: addInventoryItem,
     updateItem: updateInventoryItem,
-    deleteItem: deleteInventoryItem
+    deleteItem: deleteInventoryItem,
+    refreshItems
   } = useSupabaseInventory();
 
   const [newItem, setNewItem] = useState({
@@ -97,6 +99,37 @@ const Inventory = () => {
         variant: 'destructive',
       });
     }
+  };
+
+  const handleSelectItem = (itemId: string) => {
+    const newSelectedItems = new Set(selectedItems);
+    if (newSelectedItems.has(itemId)) {
+      newSelectedItems.delete(itemId);
+    } else {
+      newSelectedItems.add(itemId);
+    }
+    setSelectedItems(newSelectedItems);
+  };
+
+  const handleSelectAll = () => {
+    if (selectedItems.size === filteredItems.length && filteredItems.length > 0) {
+      setSelectedItems(new Set());
+    } else {
+      setSelectedItems(new Set(filteredItems.map(item => item.id)));
+    }
+  };
+
+  const handleUpdateSuccess = () => {
+    // Refresh the items after successful update
+    refreshItems();
+  };
+
+  const handleLowStockAlert = (item: InventoryItem) => {
+    toast({
+      title: 'Estoque Baixo',
+      description: `O item "${item.name}" está com estoque baixo (${item.current_stock} unidades).`,
+      variant: 'destructive',
+    });
   };
 
   const filteredItems = inventoryItems.filter(item => {
@@ -331,8 +364,13 @@ const Inventory = () => {
 
       <InventoryTable
         items={filteredItems}
+        selectedItems={selectedItems}
+        onSelectItem={handleSelectItem}
+        onSelectAll={handleSelectAll}
         onUpdateItem={updateInventoryItem}
         onDeleteItem={deleteInventoryItem}
+        onUpdateSuccess={handleUpdateSuccess}
+        onLowStockAlert={handleLowStockAlert}
       />
     </div>
   );
