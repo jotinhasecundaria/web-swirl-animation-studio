@@ -38,6 +38,21 @@ const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({ onFiltersChange }) =>
   const { examTypes } = useExamTypes();
   const { units } = useUnits();
 
+  // Filter to ensure only valid items with non-empty IDs and names
+  const validExamTypes = examTypes.filter(examType => 
+    examType.id && 
+    examType.name && 
+    examType.id.trim() !== '' && 
+    examType.name.trim() !== ''
+  );
+
+  const validUnits = units.filter(unit => 
+    unit.id && 
+    unit.name && 
+    unit.id.trim() !== '' && 
+    unit.name.trim() !== ''
+  );
+
   const handleExamTypeChange = (examType: string, checked: boolean) => {
     const newExamTypes = checked 
       ? [...filters.examTypes, examType]
@@ -119,7 +134,7 @@ const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({ onFiltersChange }) =>
           <div className="space-y-2">
             <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Tipos de Exame</label>
             <div className="space-y-2 max-h-32 overflow-y-auto">
-              {examTypes.filter(examType => examType.id && examType.name).map((examType) => (
+              {validExamTypes.map((examType) => (
                 <div key={examType.id} className="flex items-center space-x-2">
                   <Checkbox
                     id={examType.id}
@@ -135,7 +150,7 @@ const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({ onFiltersChange }) =>
           <div className="space-y-2">
             <label className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Unidades</label>
             <div className="space-y-2">
-              {units.filter(unit => unit.id && unit.name).map((unit) => (
+              {validUnits.map((unit) => (
                 <div key={unit.id} className="flex items-center space-x-2">
                   <Checkbox
                     id={unit.id}
@@ -170,7 +185,7 @@ const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({ onFiltersChange }) =>
         <div className="mt-4 flex items-center gap-2 flex-wrap">
           <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Filtros ativos:</span>
           {filters.examTypes.map((typeId) => {
-            const examType = examTypes.find(e => e.id === typeId);
+            const examType = validExamTypes.find(e => e.id === typeId);
             return examType ? (
               <Badge key={typeId} variant="secondary" className="flex items-center gap-1 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200">
                 {examType.name}
@@ -179,7 +194,7 @@ const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({ onFiltersChange }) =>
             ) : null;
           })}
           {filters.units.map((unitId) => {
-            const unit = units.find(u => u.id === unitId);
+            const unit = validUnits.find(u => u.id === unitId);
             return unit ? (
               <Badge key={unitId} variant="secondary" className="flex items-center gap-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200">
                 {unit.name}

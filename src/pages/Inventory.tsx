@@ -15,6 +15,7 @@ import InventoryStats from '@/components/inventory/InventoryStats';
 import InventoryFilters from '@/components/inventory/InventoryFilters';
 import InventoryStockHealth from '@/components/inventory/InventoryStockHealth';
 import { SkeletonInventory } from '@/components/ui/skeleton-inventory';
+import { useAuthContext } from '@/context/AuthContext';
 
 const Inventory = () => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -22,6 +23,7 @@ const Inventory = () => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [stockFilter, setStockFilter] = useState('all');
   const { toast } = useToast();
+  const { profile } = useAuthContext();
 
   const {
     items: inventoryItems,
@@ -29,8 +31,7 @@ const Inventory = () => {
     loading,
     addItem: addInventoryItem,
     updateItem: updateInventoryItem,
-    deleteItem: deleteInventoryItem,
-    recordMovement
+    deleteItem: deleteInventoryItem
   } = useSupabaseInventory();
 
   const [newItem, setNewItem] = useState({
@@ -73,6 +74,9 @@ const Inventory = () => {
     try {
       const itemData = {
         ...newItem,
+        unit: newItem.unit_measure, // Map unit_measure to unit
+        unit_id: profile?.unit_id || '', // Add unit_id from user profile
+        active: true, // Add active field
         expiry_date: newItem.expiry_date || null
       };
       
@@ -134,8 +138,6 @@ const Inventory = () => {
             setSearchTerm={setSearchTerm}
             selectedCategory={selectedCategory}
             setSelectedCategory={setSelectedCategory}
-            stockFilter={stockFilter}
-            setStockFilter={setStockFilter}
             categories={categories}
           />
         </div>
@@ -331,7 +333,6 @@ const Inventory = () => {
         items={filteredItems}
         onUpdateItem={updateInventoryItem}
         onDeleteItem={deleteInventoryItem}
-        categories={categories}
       />
     </div>
   );
