@@ -10,22 +10,26 @@ import ExamDetailsCard from '@/components/exams/ExamDetailsCard';
 import { useQuery } from '@tanstack/react-query';
 import { examDetailsService } from '@/services/examDetailsService';
 import { SkeletonExams } from '@/components/ui/skeleton-exams';
+import { useAuthContext } from '@/context/AuthContext';
 
 const Requests = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const { profile } = useAuthContext();
 
-  // Usar apenas um hook para buscar todos os dados necessários
+  // Buscar exames filtrados por unidade do usuário
   const { data: detailedExams, isLoading, error } = useQuery({
-    queryKey: ['detailed-exams'],
+    queryKey: ['detailed-exams', profile?.unit_id],
     queryFn: () => examDetailsService.getAllExamsWithMaterials(),
     retry: 3,
-    retryDelay: 1000
+    retryDelay: 1000,
+    enabled: !!profile
   });
 
   console.log('Detailed exams data:', detailedExams);
   console.log('Loading state:', isLoading);
   console.log('Error:', error);
+  console.log('User unit_id:', profile?.unit_id);
 
   // Usar os dados detalhados diretamente
   const examTypes = detailedExams || [];
@@ -57,7 +61,7 @@ const Requests = () => {
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <p className="text-red-500 dark:text-red-400 mb-2">Erro ao carregar exames</p>
-          <p className="text-gray-500 dark:text-gray-400 text-sm">
+          <p className="text-neutral-500 dark:text-neutral-400 text-sm">
             Tente recarregar a página
           </p>
         </div>
@@ -68,25 +72,25 @@ const Requests = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-800 dark:text-white">
+        <h1 className="text-3xl font-bold text-neutral-900 dark:text-neutral-100">
           Tipos de Exames
         </h1>
-        <p className="text-gray-500 dark:text-gray-400 mt-1">
-          Gerencie os tipos de exames disponíveis no laboratório
+        <p className="text-neutral-600 dark:text-neutral-400 mt-1">
+          Gerencie os tipos de exames disponíveis na sua unidade
         </p>
       </div>
 
       <ExamsStats examTypes={examTypes} />
 
       {/* Filters */}
-      <Card>
-        <CardContent className="p-4 bg-neutral-100/80 dark:bg-neutral-800/80">
+      <Card className="bg-white dark:bg-neutral-950/50 border-neutral-200 dark:border-neutral-800">
+        <CardContent className="p-4">
           <div className="flex flex-col gap-4">
             <div className="relative w-full">
-              <Search className="absolute left-3 top-3 transform text-gray-400" size={18} />
+              <Search className="absolute left-3 top-3 transform text-neutral-400" size={18} />
               <Input
                 placeholder="Buscar exame..."
-                className="pl-10 w-full rounded-md bg-white dark:bg-neutral-700/40"
+                className="pl-10 w-full rounded-md bg-white dark:bg-neutral-800/50 border-neutral-300 dark:border-neutral-700"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -96,15 +100,15 @@ const Requests = () => {
               {categories.map((category) => (
                 <button
                   key={category.id}
-                  className={`px-4 py-2 text-sm font-medium whitespace-nowrap flex-shrink-0 flex items-center gap-2 ${
+                  className={`px-4 py-2 text-sm font-medium whitespace-nowrap flex-shrink-0 flex items-center gap-2 rounded-md transition-colors ${
                     selectedCategory === category.id
-                      ? "bg-lab-blue text-white dark:bg-lab-blue/80"
-                      : "bg-white text-gray-700 hover:bg-gray-100 dark:bg-neutral-700/80 dark:text-gray-300 dark:hover:bg-gray-700"
-                  } rounded-md transition-colors`}
+                      ? "bg-indigo-600 text-white dark:bg-indigo-500"
+                      : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                  }`}
                   onClick={() => setSelectedCategory(category.id)}
                 >
                   {category.name}
-                  <Badge variant="secondary" className="ml-1 text-xs">
+                  <Badge variant="secondary" className="ml-1 text-xs bg-white/20 text-current border-none">
                     {category.count}
                   </Badge>
                 </button>
@@ -115,7 +119,7 @@ const Requests = () => {
       </Card>
 
       {/* Exams Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {filteredExams.map((exam) => (
           <ExamDetailsCard
             key={exam.id}
@@ -129,11 +133,20 @@ const Requests = () => {
       </div>
 
       {filteredExams.length === 0 && !isLoading && (
-        <div className="text-center py-10">
-          <p className="text-gray-500 dark:text-gray-400">
+        <div className="text-center py-12">
+          <div className="text-neutral-400 dark:text-neutral-500 mb-4">
+            <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
+          </div>
+          <p className="text-neutral-600 dark:text-neutral-400 text-lg font-medium mb-2">
             {examTypes.length === 0 
-              ? "Nenhum exame encontrado na base de dados."
-              : "Nenhum exame encontrado com os filtros aplicados."
+              ? "Nenhum exame encontrado na sua unidade"
+              : "Nenhum exame encontrado com os filtros aplicados"
+            }
+          </p>
+          <p className="text-neutral-500 dark:text-neutral-400 text-sm">
+            {examTypes.length === 0 
+              ? "Entre em contato com o administrador para adicionar exames à sua unidade."
+              : "Tente ajustar os filtros ou termo de busca."
             }
           </p>
         </div>

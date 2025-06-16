@@ -51,18 +51,52 @@ export const examDetailsService = {
 
   async getAllExamsWithMaterials(): Promise<ExamDetails[]> {
     try {
-      const { data: exams, error } = await supabase
+      // Buscar informações do usuário para filtrar por unidade
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
+
+      if (!user) {
+        console.warn('No user found, returning empty array');
+        return [];
+      }
+
+      // Buscar perfil do usuário para obter unit_id
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('unit_id')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError) {
+        console.error('Error fetching user profile:', profileError);
+        // Se não conseguir buscar o perfil, retorna array vazio
+        return [];
+      }
+
+      let query = supabase
         .from('exam_types')
         .select('*')
         .eq('active', true)
         .order('name');
 
+      // Filtrar por unidade do usuário se disponível
+      if (profile?.unit_id) {
+        query = query.eq('unit_id', profile.unit_id);
+      }
+
+      const { data: exams, error } = await query;
+
       if (error) throw error;
 
       const examDetails = await Promise.all(
-        exams.map(async (exam) => {
-          const details = await this.getExamDetails(exam.id);
-          return details;
+        (exams || []).map(async (exam) => {
+          try {
+            const details = await this.getExamDetails(exam.id);
+            return details;
+          } catch (error) {
+            console.error(`Error fetching details for exam ${exam.id}:`, error);
+            return null;
+          }
         })
       );
 
