@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,12 +24,12 @@ const Inventory = () => {
   const { toast } = useToast();
 
   const {
-    inventoryItems,
+    items: inventoryItems,
     categories,
     loading,
-    addInventoryItem,
-    updateInventoryItem,
-    deleteInventoryItem,
+    addItem: addInventoryItem,
+    updateItem: updateInventoryItem,
+    deleteItem: deleteInventoryItem,
     recordMovement
   } = useSupabaseInventory();
 
@@ -130,11 +131,11 @@ const Inventory = () => {
         <div className="lg:col-span-2">
           <InventoryFilters
             searchTerm={searchTerm}
-            onSearchChange={setSearchTerm}
+            setSearchTerm={setSearchTerm}
             selectedCategory={selectedCategory}
-            onCategoryChange={setSelectedCategory}
+            setSelectedCategory={setSelectedCategory}
             stockFilter={stockFilter}
-            onStockFilterChange={setStockFilter}
+            setStockFilter={setStockFilter}
             categories={categories}
           />
         </div>
@@ -172,7 +173,7 @@ const Inventory = () => {
                         <SelectValue placeholder="Selecione uma categoria" />
                       </SelectTrigger>
                       <SelectContent>
-                        {categories.map((category) => (
+                        {categories.filter(category => category.id).map((category) => (
                           <SelectItem key={category.id} value={category.id}>
                             {category.name}
                           </SelectItem>
@@ -315,13 +316,21 @@ const Inventory = () => {
         </div>
       </div>
 
-      <InventoryStockHealth items={inventoryItems} />
+      <InventoryStockHealth 
+        items={inventoryItems} 
+        expiringItems={inventoryItems.filter(item => {
+          if (!item.expiry_date) return false;
+          const expiryDate = new Date(item.expiry_date);
+          const thirtyDaysFromNow = new Date();
+          thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+          return expiryDate <= thirtyDaysFromNow;
+        })} 
+      />
 
       <InventoryTable
         items={filteredItems}
         onUpdateItem={updateInventoryItem}
         onDeleteItem={deleteInventoryItem}
-        onRecordMovement={recordMovement}
         categories={categories}
       />
     </div>
