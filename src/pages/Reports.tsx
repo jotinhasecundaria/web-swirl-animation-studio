@@ -1,4 +1,3 @@
-
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -27,11 +26,13 @@ const Reports = () => {
   const pageRef = useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState("overview");
   const [reportType, setReportType] = useState("weekly");
-  const [selectedUnit, setSelectedUnit] = useState<string>("");
+  const [selectedUnit, setSelectedUnit] = useState<string>("all");
   const [filters, setFilters] = useState({});
   
   const { profile, hasRole } = useAuthContext();
-  const { data: reportData, isLoading } = useReportsData(selectedUnit);
+  // Pass undefined to useReportsData when "all" is selected, otherwise pass the selectedUnit
+  const unitFilter = selectedUnit === "all" ? undefined : selectedUnit;
+  const { data: reportData, isLoading } = useReportsData(unitFilter);
   const metrics = reportData ? useReportMetrics(reportData) : null;
 
   useEffect(() => {
@@ -106,7 +107,7 @@ const Reports = () => {
                     <SelectValue placeholder="Todas as unidades" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todas as unidades</SelectItem>
+                    <SelectItem value="all">Todas as unidades</SelectItem>
                     {reportData.units.map((unit) => (
                       <SelectItem key={unit.id} value={unit.id}>
                         {unit.name} ({unit.code})
