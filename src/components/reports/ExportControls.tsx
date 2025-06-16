@@ -2,18 +2,24 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Download, FileText, Database } from 'lucide-react';
+import { Download, FileText, Database, FileSpreadsheet } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { exportToCSV, exportToJSON } from '@/utils/exportUtils';
+import { exportToCSV, exportToJSON, exportToExcel, exportMultipleSheets } from '@/utils/exportUtils';
 
 interface ExportControlsProps {
   data: any[];
   reportType: string;
   onExport?: (format: string, dataTypes: string[]) => void;
+  additionalData?: { [key: string]: any[] };
 }
 
-const ExportControls: React.FC<ExportControlsProps> = ({ data, reportType, onExport }) => {
-  const [format, setFormat] = useState<'csv' | 'json'>('csv');
+const ExportControls: React.FC<ExportControlsProps> = ({ 
+  data, 
+  reportType, 
+  onExport,
+  additionalData = {} 
+}) => {
+  const [format, setFormat] = useState<'csv' | 'json' | 'excel'>('excel');
   const { toast } = useToast();
 
   const handleExport = () => {
@@ -29,8 +35,22 @@ const ExportControls: React.FC<ExportControlsProps> = ({ data, reportType, onExp
       
       if (format === 'csv') {
         exportToCSV(data, filename);
-      } else {
+      } else if (format === 'json') {
         exportToJSON(data, filename);
+      } else if (format === 'excel') {
+        // If we have additional data, create multiple sheets
+        if (Object.keys(additionalData).length > 0) {
+          const sheets = [
+            { data, name: 'Dados Principais' },
+            ...Object.entries(additionalData).map(([key, sheetData]) => ({
+              data: sheetData,
+              name: key
+            }))
+          ];
+          exportMultipleSheets(sheets, filename);
+        } else {
+          exportToExcel(data, filename);
+        }
       }
 
       toast({
@@ -51,7 +71,7 @@ const ExportControls: React.FC<ExportControlsProps> = ({ data, reportType, onExp
     <div className="flex items-center gap-4 p-4 bg-card rounded-lg border">
       <div className="flex items-center gap-2">
         <span className="text-sm font-medium">Formato:</span>
-        <Select value={format} onValueChange={(value: 'csv' | 'json') => setFormat(value)}>
+        <Select value={format} onValueChange={(value: 'csv' | 'json' | 'excel') => setFormat(value)}>
           <SelectTrigger className="w-32">
             <SelectValue />
           </SelectTrigger>
@@ -66,6 +86,12 @@ const ExportControls: React.FC<ExportControlsProps> = ({ data, reportType, onExp
               <div className="flex items-center gap-2">
                 <Database className="w-4 h-4" />
                 JSON
+              </div>
+            </SelectItem>
+            <SelectItem value="excel">
+              <div className="flex items-center gap-2">
+                <FileSpreadsheet className="w-4 h-4" />
+                Excel
               </div>
             </SelectItem>
           </SelectContent>

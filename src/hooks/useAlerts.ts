@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -11,6 +12,9 @@ export interface Alert {
   priority: 'critical' | 'high' | 'medium' | 'low';
   timestamp: string;
   resolved: boolean;
+  isRead: boolean;
+  status: 'active' | 'resolved';
+  createdAt: string;
   item?: string;
   currentStock?: number;
   minStock?: number;
@@ -47,6 +51,9 @@ export const useAlerts = () => {
         priority: 'medium' as const,
         timestamp: new Date().toISOString(),
         resolved: false,
+        isRead: false,
+        status: 'active' as const,
+        createdAt: new Date().toISOString(),
         item: item.name,
         currentStock: item.current_stock,
         unit: item.unit_measure,
@@ -83,7 +90,7 @@ export const useAlerts = () => {
       const allAlerts = [...stockAlerts, ...expiryAlerts, ...predictionAlerts];
       
       setAlerts(allAlerts);
-      setUnreadCount(allAlerts.filter(alert => !alert.resolved).length);
+      setUnreadCount(allAlerts.filter(alert => !alert.isRead).length);
     } catch (error) {
       console.error('Erro ao buscar alertas:', error);
       toast({
@@ -114,6 +121,9 @@ export const useAlerts = () => {
         priority: item.current_stock === 0 ? 'critical' as const : 'high' as const,
         timestamp: new Date().toISOString(),
         resolved: false,
+        isRead: false,
+        status: 'active' as const,
+        createdAt: new Date().toISOString(),
         item: item.name,
         currentStock: item.current_stock,
         minStock: item.min_stock,
@@ -165,6 +175,9 @@ export const useAlerts = () => {
           priority: isExpired ? 'critical' as const : daysUntilExpiry <= 7 ? 'high' as const : 'medium' as const,
           timestamp: new Date().toISOString(),
           resolved: false,
+          isRead: false,
+          status: 'active' as const,
+          createdAt: new Date().toISOString(),
           item: item.name,
           expiryDate: item.expiry_date,
           lot: item.lot_number,
@@ -202,14 +215,65 @@ export const useAlerts = () => {
 
   const markAsResolved = (alertId: string) => {
     setAlerts(prev => prev.map(alert => 
-      alert.id === alertId ? { ...alert, resolved: true } : alert
+      alert.id === alertId ? { ...alert, resolved: true, status: 'resolved' as const } : alert
     ));
     setUnreadCount(prev => Math.max(0, prev - 1));
   };
 
   const markAllAsResolved = () => {
-    setAlerts(prev => prev.map(alert => ({ ...alert, resolved: true })));
+    setAlerts(prev => prev.map(alert => ({ ...alert, resolved: true, status: 'resolved' as const })));
     setUnreadCount(0);
+  };
+
+  const markAsRead = (alertId: string) => {
+    setAlerts(prev => prev.map(alert => 
+      alert.id === alertId ? { ...alert, isRead: true } : alert
+    ));
+    setUnreadCount(prev => Math.max(0, prev - 1));
+  };
+
+  const markAllAsRead = () => {
+    setAlerts(prev => prev.map(alert => ({ ...alert, isRead: true })));
+    setUnreadCount(0);
+  };
+
+  const getUnreadCount = () => {
+    return alerts.filter(alert => !alert.isRead).length;
+  };
+
+  const sendEmailForAlert = async (alert: Alert) => {
+    try {
+      if (alert.type === 'stock' && alert.item) {
+        const mockItem = {
+          name: alert.item,
+          current_stock: alert.currentStock || 0,
+          min_stock: alert.minStock || 0,
+          unit_measure: alert.unit || '',
+          expiry_date: alert.expiryDate,
+          lot_number: alert.lot,
+          unit_id: alert.unitId
+        };
+        await sendStockAlert(mockItem, 'low_stock');
+      } else if (alert.type === 'forecast' && alert.item) {
+        await sendForecastAlert({
+          item: alert.item,
+          predicted_date: alert.forecastDate || '',
+          unit_id: alert.unitId
+        });
+      }
+      
+      toast({
+        title: 'Email enviado',
+        description: `Alerta sobre ${alert.item || alert.title} foi enviado por email`,
+      });
+    } catch (error) {
+      console.error('Erro ao enviar alerta por email:', error);
+      toast({
+        title: 'Erro ao enviar email',
+        description: 'Não foi possível enviar o alerta por email.',
+        variant: 'destructive',
+      });
+    }
   };
 
   return {
@@ -219,5 +283,9 @@ export const useAlerts = () => {
     fetchAlerts,
     markAsResolved,
     markAllAsResolved,
+    markAsRead,
+    markAllAsRead,
+    getUnreadCount,
+    sendEmailForAlert,
   };
 };
