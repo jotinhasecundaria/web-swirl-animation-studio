@@ -86,7 +86,6 @@ export const useAuth = () => {
 
     const initializeAuth = async () => {
       try {
-        // Primeiro configurar o listener
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
           async (event, session) => {
             console.log('Auth state change:', event, session?.user?.email);
@@ -97,7 +96,6 @@ export const useAuth = () => {
             setUser(session?.user ?? null);
             
             if (session?.user) {
-              // Usar setTimeout para evitar loops
               setTimeout(async () => {
                 if (mounted) {
                   await fetchProfile(session.user.id);
@@ -114,7 +112,6 @@ export const useAuth = () => {
           }
         );
 
-        // Depois verificar sessão atual
         const { data: { session: currentSession } } = await supabase.auth.getSession();
         
         if (!mounted) return;
@@ -305,6 +302,19 @@ export const useAuth = () => {
     return role === 'supervisor' || role === 'admin';
   };
 
+  // Novos métodos para verificar status do usuário
+  const isPending = (): boolean => {
+    return profile?.status === 'pending';
+  };
+
+  const isActive = (): boolean => {
+    return profile?.status === 'active';
+  };
+
+  const isSuspended = (): boolean => {
+    return profile?.status === 'suspended';
+  };
+
   return {
     user,
     session,
@@ -323,5 +333,8 @@ export const useAuth = () => {
     hasRole,
     isAdmin,
     isSupervisor,
+    isPending,
+    isActive,
+    isSuspended,
   };
 };
