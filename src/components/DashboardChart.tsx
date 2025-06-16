@@ -1,3 +1,4 @@
+
 import { Card, CardContent } from '@/components/ui/card';
 import React, { useRef, useEffect, memo, useMemo } from 'react';
 import { ResponsiveContainer, BarChart, Bar, LineChart, Line, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip, Legend, PieChart, Pie, Cell, RadialBar, PolarAngleAxis, RadarChart, PolarGrid, PolarAngleAxis as RadarAngleAxis, Radar } from 'recharts';
@@ -255,7 +256,19 @@ const DashboardChart: React.FC<DashboardChartProps> = memo(({
           </div>;
     }
   }, [type, data, title, renderProgressBars]);
-  return;
+  
+  return (
+    <Card className="bg-white dark:bg-neutral-950/50 border-neutral-200 dark:border-neutral-800 rounded-lg shadow-lg">
+      <CardContent className="p-6" ref={chartRef}>
+        <div className="mb-4">
+          <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">{title}</h3>
+          <p className="text-sm text-neutral-500 dark:text-neutral-400">{description}</p>
+        </div>
+        {renderChart}
+      </CardContent>
+    </Card>
+  );
 });
+
 DashboardChart.displayName = 'DashboardChart';
 export default DashboardChart;

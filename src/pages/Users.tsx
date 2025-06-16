@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -5,9 +6,15 @@ import { UserCheck, Users as UsersIcon, Shield } from 'lucide-react';
 import PendingUsersTable from '@/components/users/PendingUsersTable';
 import ActiveUsersTable from '@/components/users/ActiveUsersTable';
 import { useAuthContext } from '@/context/AuthContext';
+import { SkeletonUsers } from '@/components/ui/skeleton-users';
 
 const UsersPage = () => {
-  const { isAdmin } = useAuthContext();
+  const { isAdmin, user } = useAuthContext();
+
+  // Show loading skeleton while checking auth
+  if (!user) {
+    return <SkeletonUsers />;
+  }
 
   // Verificar se o usuário é admin antes de permitir acesso
   if (!isAdmin()) {
