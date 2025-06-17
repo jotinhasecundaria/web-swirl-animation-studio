@@ -84,7 +84,7 @@ const EnhancedAvailableTimesGrid: React.FC<EnhancedAvailableTimesGridProps> = ({
               <SelectValue placeholder="Todos os médicos" />
             </SelectTrigger>
             <SelectContent className="bg-white dark:bg-neutral-800 border-neutral-300 dark:border-neutral-600">
-              <SelectItem value="">Todos os médicos</SelectItem>
+              <SelectItem value="all">Todos os médicos</SelectItem>
               {doctors.map((doctor) => (
                 <SelectItem key={doctor.id} value={doctor.id}>
                   <div className="flex flex-col">
@@ -117,7 +117,7 @@ const EnhancedAvailableTimesGrid: React.FC<EnhancedAvailableTimesGridProps> = ({
               
               if (!availableSlot && !selectedDoctor) return null;
               
-              const slot = selectedDoctor 
+              const slot = selectedDoctor && selectedDoctor !== "all"
                 ? slots.find(s => s.doctorId === selectedDoctor) 
                 : availableSlot;
               
