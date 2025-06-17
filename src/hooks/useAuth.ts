@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { authLogger } from '@/utils/authLogger';
+import { getAuthErrorMessage, cleanupAuthState } from '@/utils/authHelpers';
 
 export interface Profile {
   id: string;
@@ -29,6 +31,8 @@ export const useAuth = () => {
 
   const fetchProfile = async (userId: string) => {
     try {
+      authLogger.info('Fetching user profile', { userId });
+      
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -36,7 +40,7 @@ export const useAuth = () => {
         .single();
 
       if (error && error.code !== 'PGRST116') {
-        console.error('Error fetching profile:', error);
+        authLogger.error('Error fetching profile', { userId, error: error.message });
         return { data: null, error };
       }
       
@@ -46,19 +50,28 @@ export const useAuth = () => {
           status: data.status === 'inactive' ? 'suspended' : data.status
         };
         
+        authLogger.info('Profile fetched successfully', { 
+          userId, 
+          email: mappedProfile.email, 
+          status: mappedProfile.status 
+        });
+        
         setProfile(mappedProfile);
         return { data: mappedProfile, error: null };
       }
       
+      authLogger.warning('No profile found for user', { userId });
       return { data: null, error: null };
     } catch (error: any) {
-      console.error('Error fetching profile:', error);
+      authLogger.error('Exception while fetching profile', { userId, error: error.message });
       return { data: null, error };
     }
   };
 
   const fetchUserRole = async (userId: string) => {
     try {
+      authLogger.info('Fetching user role', { userId });
+      
       const { data, error } = await supabase
         .from('user_roles')
         .select('role')
@@ -68,15 +81,17 @@ export const useAuth = () => {
         .single();
 
       if (error && error.code !== 'PGRST116') {
-        console.error('Error fetching user role:', error);
+        authLogger.error('Error fetching user role', { userId, error: error.message });
         return { data: null, error };
       }
       
       const userRole = data?.role || 'user';
+      authLogger.info('User role fetched', { userId, role: userRole });
+      
       setRole(userRole);
       return { data: userRole, error: null };
     } catch (error: any) {
-      console.error('Error fetching user role:', error);
+      authLogger.error('Exception while fetching user role', { userId, error: error.message });
       return { data: null, error };
     }
   };
@@ -86,16 +101,30 @@ export const useAuth = () => {
 
     const initializeAuth = async () => {
       try {
+        authLogger.info('Initializing auth system');
+        
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
           async (event, session) => {
-            console.log('Auth state change:', event, session?.user?.email);
+            authLogger.info('Auth state change', { 
+              event, 
+              userEmail: session?.user?.email,
+              hasSession: !!session 
+            });
             
-            if (!mounted) return;
+            if (!mounted) {
+              authLogger.debug('Component unmounted, skipping auth state update');
+              return;
+            }
 
             setSession(session);
             setUser(session?.user ?? null);
             
             if (session?.user) {
+              authLogger.info('User authenticated, fetching profile and role', { 
+                userId: session.user.id,
+                email: session.user.email 
+              });
+              
               setTimeout(async () => {
                 if (mounted) {
                   await fetchProfile(session.user.id);
@@ -103,6 +132,7 @@ export const useAuth = () => {
                 }
               }, 0);
             } else {
+              authLogger.info('No active session, clearing user data');
               setProfile(null);
               setRole(null);
             }
@@ -113,6 +143,11 @@ export const useAuth = () => {
         );
 
         const { data: { session: currentSession } } = await supabase.auth.getSession();
+        
+        authLogger.info('Current session check', { 
+          hasCurrentSession: !!currentSession,
+          userEmail: currentSession?.user?.email 
+        });
         
         if (!mounted) return;
 
@@ -132,10 +167,11 @@ export const useAuth = () => {
         setInitializing(false);
 
         return () => {
+          authLogger.info('Cleaning up auth subscription');
           subscription.unsubscribe();
         };
-      } catch (error) {
-        console.error('Auth initialization error:', error);
+      } catch (error: any) {
+        authLogger.error('Auth initialization error', { error: error.message });
         if (mounted) {
           setLoading(false);
           setInitializing(false);
@@ -153,29 +189,89 @@ export const useAuth = () => {
   const signIn = async (email: string, password: string) => {
     try {
       setLoading(true);
+      authLogger.info('Sign in attempt', { email });
       
+      // Clean up any existing auth state
+      cleanupAuthState();
+      
+      // Primeiro verificar se o usuário existe e seu status
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('status, full_name')
+        .eq('email', email)
+        .single();
+
       const { data, error } = await supabase.auth.signInWithPassword({ 
         email, 
         password 
       });
       
       if (error) {
-        console.error('Sign in error:', error);
+        authLogger.error('Sign in failed', { email, error: error.message });
+        
+        // Mensagens específicas baseadas no erro
+        let friendlyMessage = '';
+        if (error.message.includes('Invalid login credentials')) {
+          friendlyMessage = 'Email ou senha incorretos. Verifique suas credenciais e tente novamente.';
+        } else if (error.message.includes('Email not confirmed')) {
+          friendlyMessage = 'Email não confirmado. Verifique sua caixa de entrada e confirme seu email.';
+        } else {
+          friendlyMessage = getAuthErrorMessage(error);
+        }
+        
         toast({
           title: 'Erro no login',
-          description: error.message,
+          description: friendlyMessage,
           variant: 'destructive',
         });
         return { data: null, error };
       }
 
-      console.log('Sign in successful:', data.user?.email);
+      // Se o login foi bem-sucedido mas o usuário tem status pending
+      if (data?.user && profileData && profileData.status === 'pending') {
+        authLogger.info('User login successful but account pending approval', { email });
+        
+        // Fazer logout do usuário
+        await supabase.auth.signOut();
+        
+        toast({
+          title: 'Conta pendente de aprovação',
+          description: 'Sua conta está aguardando aprovação de um administrador. Você receberá um email quando for aprovada.',
+          variant: 'destructive',
+        });
+        return { data: null, error: { message: 'Account pending approval' } };
+      }
+
+      // Se o usuário tem status suspenso
+      if (data?.user && profileData && profileData.status === 'suspended') {
+        authLogger.info('User login successful but account suspended', { email, status: profileData.status });
+        
+        // Fazer logout do usuário
+        await supabase.auth.signOut();
+        
+        toast({
+          title: 'Conta suspensa',
+          description: 'Sua conta foi suspensa. Entre em contato com um administrador.',
+          variant: 'destructive',
+        });
+        return { data: null, error: { message: 'Account suspended' } };
+      }
+
+      authLogger.info('Sign in successful', { email, userId: data.user?.id });
+      
+      toast({
+        title: 'Login realizado com sucesso!',
+        description: `Bem-vindo, ${profileData?.full_name || email}!`,
+      });
+      
       return { data, error: null };
     } catch (error: any) {
-      console.error('Sign in catch error:', error);
+      const friendlyMessage = getAuthErrorMessage(error);
+      authLogger.error('Sign in exception', { email, error: error.message });
+      
       toast({
         title: 'Erro no login',
-        description: error.message || 'Erro desconhecido',
+        description: friendlyMessage,
         variant: 'destructive',
       });
       return { data: null, error };
@@ -187,6 +283,7 @@ export const useAuth = () => {
   const signUp = async (email: string, password: string, fullName: string) => {
     try {
       setLoading(true);
+      authLogger.info('Sign up attempt', { email, fullName });
       
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -200,27 +297,32 @@ export const useAuth = () => {
       });
       
       if (error) {
-        console.error('Sign up error:', error);
+        const friendlyMessage = getAuthErrorMessage(error);
+        authLogger.error('Sign up failed', { email, error: error.message });
+        
         toast({
           title: 'Erro no cadastro',
-          description: error.message,
+          description: friendlyMessage,
           variant: 'destructive',
         });
         return { data: null, error };
       }
 
-      console.log('Sign up successful:', data.user?.email);
+      authLogger.info('Sign up successful', { email, userId: data.user?.id });
+      
       toast({
-        title: 'Cadastro realizado',
-        description: 'Verifique seu email para confirmar a conta.',
+        title: 'Cadastro realizado com sucesso!',
+        description: 'Verifique seu email para confirmar a conta. Após a confirmação, aguarde a aprovação de um administrador.',
       });
       
       return { data, error: null };
     } catch (error: any) {
-      console.error('Sign up catch error:', error);
+      const friendlyMessage = getAuthErrorMessage(error);
+      authLogger.error('Sign up exception', { email, error: error.message });
+      
       toast({
         title: 'Erro no cadastro',
-        description: error.message || 'Erro desconhecido',
+        description: friendlyMessage,
         variant: 'destructive',
       });
       return { data: null, error };
@@ -231,25 +333,33 @@ export const useAuth = () => {
 
   const signOut = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
+      authLogger.info('Sign out attempt', { userEmail: user?.email });
+      
+      cleanupAuthState();
+      
+      const { error } = await supabase.auth.signOut({ scope: 'global' });
       
       if (error) {
-        console.error('Sign out error:', error);
+        authLogger.error('Sign out failed', { error: error.message });
         toast({
           title: 'Erro ao sair',
-          description: error.message,
+          description: getAuthErrorMessage(error),
           variant: 'destructive',
         });
         return { error };
       }
 
-      console.log('Sign out successful');
+      authLogger.info('Sign out successful');
+      
+      // Force page reload for clean state
+      window.location.href = '/auth';
+      
       return { error: null };
     } catch (error: any) {
-      console.error('Sign out catch error:', error);
+      authLogger.error('Sign out exception', { error: error.message });
       toast({
         title: 'Erro ao sair',
-        description: error.message || 'Erro desconhecido',
+        description: getAuthErrorMessage(error),
         variant: 'destructive',
       });
       return { error };
@@ -258,32 +368,39 @@ export const useAuth = () => {
 
   const resetPassword = async (email: string) => {
     try {
+      authLogger.info('Password reset attempt', { email });
+      
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`,
       });
       
       if (error) {
-        console.error('Reset password error:', error);
+        const friendlyMessage = getAuthErrorMessage(error);
+        authLogger.error('Password reset failed', { email, error: error.message });
+        
         toast({
           title: 'Erro',
-          description: error.message,
+          description: friendlyMessage,
           variant: 'destructive',
         });
         return { error };
       }
 
-      console.log('Reset password email sent');
+      authLogger.info('Password reset email sent', { email });
+      
       toast({
-        title: 'Email enviado',
+        title: 'Email enviado com sucesso!',
         description: 'Verifique seu email para redefinir a senha.',
       });
       
       return { error: null };
     } catch (error: any) {
-      console.error('Reset password catch error:', error);
+      const friendlyMessage = getAuthErrorMessage(error);
+      authLogger.error('Password reset exception', { email, error: error.message });
+      
       toast({
         title: 'Erro',
-        description: error.message || 'Erro desconhecido',
+        description: friendlyMessage,
         variant: 'destructive',
       });
       return { error };
@@ -302,7 +419,6 @@ export const useAuth = () => {
     return role === 'supervisor' || role === 'admin';
   };
 
-  // Novos métodos para verificar status do usuário
   const isPending = (): boolean => {
     return profile?.status === 'pending';
   };

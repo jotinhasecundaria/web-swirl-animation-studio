@@ -1,9 +1,8 @@
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { User, Stethoscope } from 'lucide-react';
-import { useDoctors } from '@/hooks/useDoctors';
-import { useExamTypes } from '@/hooks/useExamTypes';
+import { useAppointmentLogic } from '@/hooks/useAppointmentLogic';
 
 interface DoctorExamSelectorProps {
   selectedDoctor: string;
@@ -18,40 +17,21 @@ const DoctorExamSelector: React.FC<DoctorExamSelectorProps> = ({
   onDoctorChange,
   onExamTypeChange
 }) => {
-  const { doctors } = useDoctors();
-  const { examTypes } = useExamTypes();
-  const [filteredExamTypes, setFilteredExamTypes] = useState(examTypes);
+  const {
+    filteredDoctors,
+    filteredExamTypes,
+    handleDoctorChange,
+    handleExamTypeChange
+  } = useAppointmentLogic();
 
-  // Mapear especialidades dos médicos com tipos de exame
-  const doctorExamMapping: Record<string, string[]> = {
-    'Cardiologia': ['Eletrocardiograma', 'Ecocardiograma', 'Teste Ergométrico'],
-    'Dermatologia': ['Biópsia de Pele', 'Dermatoscopia'],
-    'Ortopedia': ['Raio-X', 'Ressonância Magnética'],
-    'Neurologia': ['Eletroencefalograma', 'Tomografia'],
-    'Pediatria': ['Consulta Pediátrica', 'Vacinação'],
+  const onDoctorSelect = (doctorId: string) => {
+    handleDoctorChange(doctorId);
+    onDoctorChange(doctorId);
   };
 
-  useEffect(() => {
-    if (selectedDoctor) {
-      const doctor = doctors.find(d => d.id === selectedDoctor);
-      if (doctor?.specialty && doctorExamMapping[doctor.specialty]) {
-        const allowedExams = doctorExamMapping[doctor.specialty];
-        const filtered = examTypes.filter(exam => 
-          allowedExams.some(allowed => exam.name.includes(allowed))
-        );
-        setFilteredExamTypes(filtered);
-      } else {
-        setFilteredExamTypes(examTypes);
-      }
-    } else {
-      setFilteredExamTypes(examTypes);
-    }
-  }, [selectedDoctor, doctors, examTypes]);
-
-  const handleDoctorChange = (doctorId: string) => {
-    onDoctorChange(doctorId);
-    // Reset exam type when doctor changes
-    onExamTypeChange('');
+  const onExamSelect = (examTypeId: string) => {
+    handleExamTypeChange(examTypeId);
+    onExamTypeChange(examTypeId);
   };
 
   return (
@@ -62,12 +42,12 @@ const DoctorExamSelector: React.FC<DoctorExamSelectorProps> = ({
           <User className="h-4 w-4" />
           Médico
         </label>
-        <Select value={selectedDoctor} onValueChange={handleDoctorChange}>
+        <Select value={selectedDoctor} onValueChange={onDoctorSelect}>
           <SelectTrigger className="w-full bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600">
             <SelectValue placeholder="Selecione o médico" />
           </SelectTrigger>
           <SelectContent className="bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600">
-            {doctors.map((doctor) => (
+            {filteredDoctors.map((doctor) => (
               <SelectItem 
                 key={doctor.id} 
                 value={doctor.id}
@@ -76,7 +56,7 @@ const DoctorExamSelector: React.FC<DoctorExamSelectorProps> = ({
                 <div className="flex flex-col">
                   <span className="font-medium">{doctor.name}</span>
                   <span className="text-sm text-gray-500 dark:text-gray-400">
-                    {doctor.specialty}
+                    {doctor.specialty || 'Clínica Geral'}
                   </span>
                 </div>
               </SelectItem>
@@ -93,7 +73,7 @@ const DoctorExamSelector: React.FC<DoctorExamSelectorProps> = ({
         </label>
         <Select 
           value={selectedExamType} 
-          onValueChange={onExamTypeChange}
+          onValueChange={onExamSelect}
           disabled={!selectedDoctor}
         >
           <SelectTrigger className="w-full bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600">
@@ -116,6 +96,11 @@ const DoctorExamSelector: React.FC<DoctorExamSelectorProps> = ({
             ))}
           </SelectContent>
         </Select>
+        {selectedDoctor && filteredExamTypes.length === 0 && (
+          <p className="text-sm text-amber-600 dark:text-amber-400">
+            Nenhum exame disponível para esta especialidade médica.
+          </p>
+        )}
       </div>
     </div>
   );
