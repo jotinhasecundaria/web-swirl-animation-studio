@@ -1,17 +1,7 @@
 
 import { useMemo } from 'react';
-
-export interface Doctor {
-  id: string;
-  name: string;
-  specialty: string;
-}
-
-export interface ExamType {
-  id: string;
-  name: string;
-  category: string;
-}
+import { Doctor as DoctorType } from './useDoctors';
+import { ExamType as ExamTypeType } from './useExamTypes';
 
 const specialtyExamMapping: Record<string, string[]> = {
   'Cardiologia': ['Eletrocardiograma', 'Ecocardiograma', 'Teste Ergométrico', 'Holter'],
@@ -28,8 +18,8 @@ const specialtyExamMapping: Record<string, string[]> = {
 
 export const useSpecialtyFilter = () => {
   const filterExamsByDoctorSpecialty = (
-    doctors: Doctor[],
-    examTypes: ExamType[],
+    doctors: DoctorType[],
+    examTypes: ExamTypeType[],
     selectedDoctorId?: string
   ) => {
     if (!selectedDoctorId) {
@@ -63,8 +53,8 @@ export const useSpecialtyFilter = () => {
   };
 
   const filterDoctorsByExamType = (
-    doctors: Doctor[],
-    examTypes: ExamType[],
+    doctors: DoctorType[],
+    examTypes: ExamTypeType[],
     selectedExamTypeId?: string
   ) => {
     if (!selectedExamTypeId) {
