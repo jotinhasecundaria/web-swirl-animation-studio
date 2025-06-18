@@ -38,27 +38,13 @@ const AppointmentCalendar: React.FC<AppointmentCalendarProps> = ({
   const loadAvailableSlots = async () => {
     if (!selectedDate || doctors.length === 0) return;
     
-    const slots = await getAvailableSlots(selectedDate, doctors, selectedDoctor);
+    console.log('Loading slots for all doctors on date:', selectedDate);
     
-    // Marcar slots com conflitos baseado nos agendamentos existentes
-    const enhancedSlots = slots.map(slot => {
-      const hasConflict = appointments.some(apt => {
-        const aptDate = new Date(apt.scheduled_date);
-        const aptTime = aptDate.toTimeString().slice(0, 5);
-        return isSameDay(aptDate, selectedDate) && 
-               aptTime === slot.time && 
-               apt.doctor_id === slot.doctorId &&
-               apt.status !== 'Cancelado';
-      });
-
-      return {
-        ...slot,
-        available: slot.available && !hasConflict,
-        hasConflict
-      };
-    });
+    // Buscar horários para todos os médicos, independentemente do filtro selecionado
+    const slots = await getAvailableSlots(selectedDate, doctors);
     
-    setTimeSlots(enhancedSlots);
+    console.log('Total slots loaded:', slots.length);
+    setTimeSlots(slots);
   };
 
   const handleSelectTime = (time: string, doctorId?: string) => {

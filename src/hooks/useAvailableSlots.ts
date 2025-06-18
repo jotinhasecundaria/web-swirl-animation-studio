@@ -38,7 +38,7 @@ export const useAvailableSlots = () => {
     return slots;
   };
 
-  // Horários padrão baseados no médico (temporário até implementar tabela doctor_schedules)
+  // Horários padrão baseados no médico
   const getDefaultDoctorSchedules = (doctorId: string): DoctorSchedule[] => {
     const scheduleMap: Record<string, DoctorSchedule[]> = {
       // Dr. João Silva (Cardiologia) - Segunda a Sexta, 8:00-17:00
@@ -59,7 +59,6 @@ export const useAvailableSlots = () => {
       ],
     };
 
-    // Se o médico não estiver no mapa, usar horário padrão
     return scheduleMap[doctorId] || [
       { day_of_week: 1, start_time: '09:00', end_time: '18:00', is_available: true },
       { day_of_week: 2, start_time: '09:00', end_time: '18:00', is_available: true },
@@ -139,39 +138,43 @@ export const useAvailableSlots = () => {
 
           const isDoctorWorking = isDoctorAvailableAtTime(doctorSchedules, date, timeSlot);
           
-          if (!isDoctorWorking) continue;
+          // Verificar conflitos se o médico está trabalhando
+          let hasConflict = false;
+          let isOccupied = false;
 
-          // Verificar conflitos mais precisamente
-          const hasConflict = appointments?.some(apt => {
-            if (apt.doctor_id !== doctor.id) return false;
-            
-            const aptDate = new Date(apt.scheduled_date);
-            const aptTime = aptDate.toTimeString().slice(0, 5);
-            
-            return isSameDay(aptDate, date) && 
-                   aptTime === timeSlot && 
-                   apt.status !== 'Cancelado';
-          });
+          if (isDoctorWorking) {
+            hasConflict = appointments?.some(apt => {
+              if (apt.doctor_id !== doctor.id) return false;
+              
+              const aptDate = new Date(apt.scheduled_date);
+              const aptTime = aptDate.toTimeString().slice(0, 5);
+              
+              return isSameDay(aptDate, date) && 
+                     aptTime === timeSlot && 
+                     apt.status !== 'Cancelado';
+            }) || false;
 
-          const isOccupied = appointments?.some(apt => {
-            if (apt.doctor_id !== doctor.id) return false;
-            
-            const aptDate = new Date(apt.scheduled_date);
-            const aptEndTime = new Date(aptDate.getTime() + (apt.duration_minutes * 60000));
-            
-            return (
-              (isAfter(slotDateTime, aptDate) || slotDateTime.getTime() === aptDate.getTime()) &&
-              isBefore(slotDateTime, aptEndTime) &&
-              apt.status !== 'Cancelado'
-            );
-          });
+            isOccupied = appointments?.some(apt => {
+              if (apt.doctor_id !== doctor.id) return false;
+              
+              const aptDate = new Date(apt.scheduled_date);
+              const aptEndTime = new Date(aptDate.getTime() + (apt.duration_minutes * 60000));
+              
+              return (
+                (isAfter(slotDateTime, aptDate) || slotDateTime.getTime() === aptDate.getTime()) &&
+                isBefore(slotDateTime, aptEndTime) &&
+                apt.status !== 'Cancelado'
+              );
+            }) || false;
+          }
 
+          // Adicionar o slot mesmo se o médico não estiver trabalhando (para mostrar como indisponível)
           availableSlots.push({
             time: timeSlot,
-            available: !isOccupied,
+            available: isDoctorWorking && !isOccupied && !hasConflict,
             doctorName: doctor.name,
             doctorId: doctor.id,
-            hasConflict: hasConflict || isOccupied
+            hasConflict: hasConflict || isOccupied || !isDoctorWorking
           });
         }
       }
