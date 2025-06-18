@@ -22,7 +22,7 @@ const AppointmentCalendar: React.FC<AppointmentCalendarProps> = ({
 }) => {
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [selectedDoctor, setSelectedDoctor] = useState<string>('');
+  const [selectedDoctor, setSelectedDoctor] = useState<string>('all');
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>('');
   const [timeSlots, setTimeSlots] = useState<any[]>([]);
   
@@ -66,6 +66,10 @@ const AppointmentCalendar: React.FC<AppointmentCalendarProps> = ({
       doctorId,
       doctorName
     });
+  };
+
+  const handleDoctorChange = (doctorId: string) => {
+    setSelectedDoctor(doctorId === 'all' ? '' : doctorId);
   };
 
   const navigateWeek = (direction: 'prev' | 'next') => {
@@ -120,7 +124,7 @@ const AppointmentCalendar: React.FC<AppointmentCalendarProps> = ({
           onSelectTime={handleSelectTime}
           selectedDoctor={selectedDoctor}
           doctors={doctors}
-          onDoctorChange={setSelectedDoctor}
+          onDoctorChange={handleDoctorChange}
           selectedTimeSlot={selectedTimeSlot}
         />
       )}

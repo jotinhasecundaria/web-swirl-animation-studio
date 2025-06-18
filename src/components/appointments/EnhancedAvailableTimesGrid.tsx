@@ -39,12 +39,12 @@ const EnhancedAvailableTimesGrid: React.FC<EnhancedAvailableTimesGridProps> = ({
   onDoctorChange,
   selectedTimeSlot
 }) => {
-  const filteredSlots = selectedDoctor 
+  const filteredSlots = selectedDoctor && selectedDoctor !== 'all'
     ? timeSlots.filter(slot => slot.doctorId === selectedDoctor)
     : timeSlots;
 
   const getTimeSlotStyle = (slot: TimeSlot) => {
-    const isSelected = selectedTimeSlot === slot.time && (!selectedDoctor || slot.doctorId === selectedDoctor);
+    const isSelected = selectedTimeSlot === slot.time && (selectedDoctor === 'all' || !selectedDoctor || slot.doctorId === selectedDoctor);
     
     if (isSelected) {
       return 'bg-blue-500 hover:bg-blue-600 text-white border-blue-600 ring-2 ring-blue-200 dark:ring-blue-800 shadow-md';
@@ -80,12 +80,12 @@ const EnhancedAvailableTimesGrid: React.FC<EnhancedAvailableTimesGridProps> = ({
                 Filtrar por médico:
               </span>
             </div>
-            <Select value={selectedDoctor} onValueChange={onDoctorChange}>
+            <Select value={selectedDoctor || 'all'} onValueChange={onDoctorChange}>
               <SelectTrigger className="w-full bg-white dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700">
                 <SelectValue placeholder="Todos os médicos" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos os médicos</SelectItem>
+                <SelectItem value="all">Todos os médicos</SelectItem>
                 {doctors.map((doctor) => (
                   <SelectItem key={doctor.id} value={doctor.id}>
                     {doctor.name} - {doctor.specialty}
@@ -143,7 +143,7 @@ const EnhancedAvailableTimesGrid: React.FC<EnhancedAvailableTimesGridProps> = ({
                   }
                 >
                   <div className="font-semibold">{slot.time}</div>
-                  {slot.doctorName && !selectedDoctor && (
+                  {slot.doctorName && (selectedDoctor === 'all' || !selectedDoctor) && (
                     <div className="text-xs opacity-80 truncate mt-1">
                       {slot.doctorName.split(' ')[0]}
                     </div>
