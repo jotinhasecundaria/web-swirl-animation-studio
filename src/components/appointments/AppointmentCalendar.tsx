@@ -27,24 +27,36 @@ const AppointmentCalendar: React.FC<AppointmentCalendarProps> = ({
   const [timeSlots, setTimeSlots] = useState<any[]>([]);
   
   const { getAvailableSlots } = useAvailableSlots();
-  const { doctors } = useDoctors();
+  const { doctors, loading: doctorsLoading } = useDoctors();
+
+  console.log('AppointmentCalendar - doctors loaded:', doctors.length);
+  console.log('AppointmentCalendar - appointments loaded:', appointments.length);
 
   useEffect(() => {
     if (selectedDate && doctors.length > 0) {
+      console.log('Loading slots for date:', selectedDate, 'with doctors:', doctors.length);
       loadAvailableSlots();
     }
   }, [selectedDate, selectedDoctor, doctors, appointments]);
 
   const loadAvailableSlots = async () => {
-    if (!selectedDate || doctors.length === 0) return;
+    if (!selectedDate || doctors.length === 0) {
+      console.log('Skipping slot loading - no date or doctors');
+      return;
+    }
     
     console.log('Loading slots for all doctors on date:', selectedDate);
     
-    // Buscar horários para todos os médicos, independentemente do filtro selecionado
-    const slots = await getAvailableSlots(selectedDate, doctors);
-    
-    console.log('Total slots loaded:', slots.length);
-    setTimeSlots(slots);
+    try {
+      // Buscar horários para todos os médicos da unidade
+      const slots = await getAvailableSlots(selectedDate, doctors);
+      
+      console.log('Total slots loaded:', slots.length);
+      setTimeSlots(slots);
+    } catch (error) {
+      console.error('Error loading available slots:', error);
+      setTimeSlots([]);
+    }
   };
 
   const handleSelectTime = (time: string, doctorId?: string) => {
@@ -59,6 +71,8 @@ const AppointmentCalendar: React.FC<AppointmentCalendarProps> = ({
     const endTime = new Date(startTime.getTime() + (30 * 60000));
     const doctorName = doctors.find(d => d.id === doctorId)?.name;
     
+    console.log('Time slot selected:', { time, doctorId, doctorName });
+    
     onSelectSlot?.({
       start: startTime,
       end: endTime,
@@ -69,6 +83,7 @@ const AppointmentCalendar: React.FC<AppointmentCalendarProps> = ({
   };
 
   const handleDoctorChange = (doctorId: string) => {
+    console.log('Doctor filter changed:', doctorId);
     setSelectedDoctor(doctorId === 'all' ? '' : doctorId);
   };
 
@@ -86,6 +101,42 @@ const AppointmentCalendar: React.FC<AppointmentCalendarProps> = ({
       isSameDay(new Date(appointment.scheduled_date), date)
     );
   };
+
+  if (doctorsLoading) {
+    return (
+      <div className="space-y-6">
+        <Card className="bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-700 shadow-sm">
+          <CardContent className="p-8">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+              <p className="text-neutral-500 dark:text-neutral-400">
+                Carregando médicos da unidade...
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (doctors.length === 0) {
+    return (
+      <div className="space-y-6">
+        <Card className="bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-700 shadow-sm">
+          <CardContent className="p-8">
+            <div className="text-center">
+              <p className="text-neutral-900 dark:text-neutral-100 text-lg font-medium mb-2">
+                Nenhum médico encontrado
+              </p>
+              <p className="text-neutral-500 dark:text-neutral-400">
+                Não há médicos cadastrados para esta unidade.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

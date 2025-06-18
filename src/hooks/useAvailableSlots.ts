@@ -100,15 +100,19 @@ export const useAvailableSlots = () => {
       const nextDay = addDays(targetDate, 1);
 
       console.log('Fetching appointments for date:', targetDate.toISOString());
+      console.log('Available doctors:', doctors.length);
 
+      // Buscar agendamentos reais do Supabase
       const { data: appointments, error: appointmentsError } = await supabase
         .from('appointments')
         .select(`
+          id,
           scheduled_date,
           duration_minutes,
           doctor_id,
           status,
-          doctors(name)
+          patient_name,
+          doctors(name, specialty)
         `)
         .gte('scheduled_date', targetDate.toISOString())
         .lt('scheduled_date', nextDay.toISOString())
@@ -138,7 +142,7 @@ export const useAvailableSlots = () => {
 
           const isDoctorWorking = isDoctorAvailableAtTime(doctorSchedules, date, timeSlot);
           
-          // Verificar conflitos se o médico está trabalhando
+          // Verificar conflitos com agendamentos reais
           let hasConflict = false;
           let isOccupied = false;
 
@@ -158,7 +162,7 @@ export const useAvailableSlots = () => {
               if (apt.doctor_id !== doctor.id) return false;
               
               const aptDate = new Date(apt.scheduled_date);
-              const aptEndTime = new Date(aptDate.getTime() + (apt.duration_minutes * 60000));
+              const aptEndTime = new Date(aptDate.getTime() + ((apt.duration_minutes || 30) * 60000));
               
               return (
                 (isAfter(slotDateTime, aptDate) || slotDateTime.getTime() === aptDate.getTime()) &&
@@ -168,7 +172,7 @@ export const useAvailableSlots = () => {
             }) || false;
           }
 
-          // Adicionar o slot mesmo se o médico não estiver trabalhando (para mostrar como indisponível)
+          // Adicionar o slot
           availableSlots.push({
             time: timeSlot,
             available: isDoctorWorking && !isOccupied && !hasConflict,
