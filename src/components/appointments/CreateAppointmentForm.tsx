@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, MapPin, User, Stethoscope, DollarSign, Plus, X, AlertTriangle } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -181,7 +182,7 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
     setIsCreating(true);
 
     try {
-      // Determinar a unidade - lógica melhorada
+      // Determinar a unidade - lógica simplificada
       let unitToUse: string;
       
       if (isAdmin() || isSupervisor()) {
@@ -192,8 +193,8 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
         unitToUse = profile?.unit_id || '';
       }
       
-      // Antes de tentar criar o agendamento
-      if (!unitToUse || !validUnits.some(unit => unit.id === unitToUse)) {
+      // Verificar se a unidade é válida
+      if (!unitToUse || !units.some(unit => unit.id === unitToUse)) {
         throw new Error('A unidade selecionada é inválida ou você não tem permissão para agendar nesta unidade.');
       }
 
@@ -207,18 +208,6 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
       const selectedExamTypeData = filteredExamTypes.find(e => e.id === selectedExamType);
       if (!selectedExamTypeData) {
         throw new Error('Tipo de exame selecionado não é válido.');
-      }
-
-      // Verificar se o médico pode atender na unidade selecionada
-      const isDoctorInUnit = selectedDoctorData.units?.includes(unitToUse);
-      if (!isDoctorInUnit && !isAdmin()) {
-        throw new Error(`O médico ${selectedDoctorData.name} não atende na unidade selecionada.`);
-      }
-
-      // Verificar se o exame é compatível com a especialidade do médico
-      const isExamCompatible = selectedDoctorData.specialties?.includes(selectedExamTypeData.category);
-      if (!isExamCompatible) {
-        throw new Error(`O médico ${selectedDoctorData.name} não realiza exames do tipo ${selectedExamTypeData.name}.`);
       }
 
       console.log('Creating appointment with unit:', unitToUse);
@@ -316,7 +305,7 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
     }
   };
 
-  // Filtrar unidades válidas
+  // Filtrar unidades válidas - corrigido
   const validUnits = units.filter(unit => 
     unit.id && 
     unit.name && 

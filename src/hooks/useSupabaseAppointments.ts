@@ -132,6 +132,8 @@ export const useSupabaseAppointments = () => {
         title: 'Médico criado',
         description: `Dr(a). ${doctorData.name} foi adicionado com sucesso.`,
       });
+
+      return data;
     } catch (error: any) {
       console.error('Error creating doctor:', error);
       toast({
@@ -167,6 +169,8 @@ export const useSupabaseAppointments = () => {
         title: 'Médico atualizado',
         description: 'As informações do médico foram atualizadas com sucesso.',
       });
+
+      return data;
     } catch (error: any) {
       console.error('Error updating doctor:', error);
       toast({
@@ -233,6 +237,8 @@ export const useSupabaseAppointments = () => {
         title: 'Tipo de exame criado',
         description: `${examTypeData.name} foi adicionado com sucesso.`,
       });
+
+      return data;
     } catch (error: any) {
       console.error('Error creating exam type:', error);
       toast({
@@ -269,6 +275,8 @@ export const useSupabaseAppointments = () => {
         title: 'Tipo de exame atualizado',
         description: 'As informações foram atualizadas com sucesso.',
       });
+
+      return data;
     } catch (error: any) {
       console.error('Error updating exam type:', error);
       toast({
