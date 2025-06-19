@@ -1,24 +1,6 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { SupabaseAppointment } from '@/types/appointment';
-import { bloodExamService } from './bloodExamService';
-
-export interface ExamMaterial {
-  inventory_item_id: string;
-  item_name: string;
-  quantity_required: number;
-  current_stock: number;
-  available_stock: number;
-  sufficient_stock: boolean;
-  estimated_cost: number;
-}
-
-export interface MaterialValidation {
-  canSchedule: boolean;
-  insufficientMaterials: string[];
-  totalEstimatedCost: number;
-  materials: ExamMaterial[];
-}
 
 // Interface que corresponde exatamente à estrutura da tabela appointments
 interface AppointmentInsert {
@@ -34,49 +16,16 @@ interface AppointmentInsert {
   cost?: number | null;
   notes?: string | null;
   created_by: string;
-  blood_exams?: string[];
-  total_blood_volume_ml?: number;
-  estimated_tubes_needed?: number;
 }
 
 export const appointmentService = {
-  async calculateExamMaterials(examTypeId: string, bloodExamIds: string[] = []): Promise<MaterialValidation> {
-    try {
-      const materials = await bloodExamService.validateMaterialsForExam(examTypeId, bloodExamIds);
-      
-      const insufficientMaterials = materials
-        .filter(m => !m.sufficient_stock)
-        .map(m => `${m.item_name} (necessário: ${m.quantity_required}, disponível: ${m.available_stock})`);
-      
-      const totalEstimatedCost = materials.reduce((sum, m) => sum + Number(m.estimated_cost || 0), 0);
-
-      return {
-        canSchedule: insufficientMaterials.length === 0,
-        insufficientMaterials,
-        totalEstimatedCost,
-        materials: materials.map(m => ({
-          inventory_item_id: m.inventory_item_id,
-          item_name: m.item_name,
-          quantity_required: m.quantity_required,
-          current_stock: m.current_stock,
-          available_stock: m.available_stock,
-          sufficient_stock: m.sufficient_stock,
-          estimated_cost: m.estimated_cost
-        }))
-      };
-    } catch (error) {
-      console.error('Error calculating exam materials:', error);
-      throw error;
-    }
-  },
-
   async createAppointment(appointment: AppointmentInsert) {
     const { data: userData } = await supabase.auth.getUser();
     if (!userData.user) {
       throw new Error('User not authenticated');
     }
 
-    console.log('Creating appointment with validated data:', appointment);
+    console.log('Creating appointment with data:', appointment);
 
     // Validar dados obrigatórios conforme tabela
     if (!appointment.patient_name?.trim()) {
@@ -146,16 +95,6 @@ export const appointmentService = {
       unit: unit.name
     });
 
-    // Calcular volume de sangue se houver exames de sangue
-    let bloodVolumeData = null;
-    if (appointment.blood_exams && appointment.blood_exams.length > 0) {
-      try {
-        bloodVolumeData = await bloodExamService.calculateBloodVolume(appointment.blood_exams);
-      } catch (error) {
-        console.warn('Could not calculate blood volume:', error);
-      }
-    }
-
     // Montar dados para inserção seguindo exatamente a estrutura da tabela
     const appointmentData: AppointmentInsert = {
       patient_name: appointment.patient_name.trim(),
@@ -169,10 +108,7 @@ export const appointmentService = {
       status: appointment.status || 'Agendado',
       cost: appointment.cost || null,
       notes: appointment.notes?.trim() || null,
-      created_by: appointment.created_by,
-      blood_exams: appointment.blood_exams || [],
-      total_blood_volume_ml: bloodVolumeData?.total_volume_ml || 0,
-      estimated_tubes_needed: bloodVolumeData?.tubes_needed || 0
+      created_by: appointment.created_by
     };
 
     console.log('Final appointment data for insertion:', appointmentData);

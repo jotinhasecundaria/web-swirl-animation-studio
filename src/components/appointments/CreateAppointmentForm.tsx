@@ -19,10 +19,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useSupabaseAppointments, type MaterialValidation as MaterialValidationType } from '@/hooks/useSupabaseAppointments';
+import { useSupabaseAppointments } from '@/hooks/useSupabaseAppointments';
 import { useAppointmentLogic } from '@/hooks/useAppointmentLogic';
 import { useAuthContext } from '@/context/AuthContext';
-import MaterialValidation from './MaterialValidation';
 import { useToast } from "@/hooks/use-toast";
 
 interface CreateAppointmentFormProps {
@@ -43,7 +42,6 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
 }) => {
   const { 
     createAppointment, 
-    calculateExamMaterials, 
     loading: dataLoading,
     units,
     doctors,
@@ -65,8 +63,6 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
   const { toast } = useToast();
   
   const [isCreating, setIsCreating] = useState(false);
-  const [materialValidation, setMaterialValidation] = useState<MaterialValidationType | null>(null);
-  const [loadingMaterials, setLoadingMaterials] = useState(false);
   
   // Pré-definir data com ano 2025
   const getDefaultDate = () => {
@@ -171,22 +167,6 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
     }
   }, [prefilledData, handleDoctorChange]);
 
-  // Calcular materiais quando o tipo de exame mudar
-  useEffect(() => {
-    if (selectedExamType) {
-      setLoadingMaterials(true);
-      calculateExamMaterials(selectedExamType)
-        .then(setMaterialValidation)
-        .catch((error) => {
-          console.warn('Could not calculate materials:', error);
-          setMaterialValidation(null);
-        })
-        .finally(() => setLoadingMaterials(false));
-    } else {
-      setMaterialValidation(null);
-    }
-  }, [selectedExamType, calculateExamMaterials]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -285,10 +265,7 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
         status: 'Agendado' as const, // Usar valor exato do enum
         cost: formData.cost > 0 ? Number(formData.cost.toFixed(2)) : null, // Formato correto para numeric(10,2)
         notes: formData.notes.trim() || null,
-        created_by: profile.id, // Campo obrigatório
-        blood_exams: [], // Array vazio por padrão
-        total_blood_volume_ml: 0,
-        estimated_tubes_needed: 0
+        created_by: profile.id // Campo obrigatório
       };
 
       console.log('Final appointment data (matching table structure):', appointmentData);
@@ -316,7 +293,6 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
       handleDoctorChange('');
       handleExamTypeChange('');
       handleUnitChange('');
-      setMaterialValidation(null);
       setValidationErrors([]);
 
     } catch (error: any) {
@@ -339,8 +315,6 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
           } else {
             errorMessage = 'Dados de referência inválidos';
           }
-        } else if (error.message.includes('Estoque insuficiente')) {
-          errorMessage = error.message;
         } else if (error.message.includes('check constraint')) {
           errorMessage = 'Status de agendamento inválido';
         } else {
@@ -666,11 +640,6 @@ const CreateAppointmentForm: React.FC<CreateAppointmentFormProps> = ({
           </form>
         </CardContent>
       </Card>
-
-      <MaterialValidation 
-        validation={materialValidation} 
-        loading={loadingMaterials} 
-      />
     </div>
   );
 };
